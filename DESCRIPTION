@@ -1,0 +1,26 @@
+Package: GBASS
+Title: Generalized Bayesian Adaptive Smoothing Splines
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Kellin",
+           family = "Rumsey",
+           role = c("aut", "cre"),
+           email = "knrumsey@lanl.gov",
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: A package for Bayesian non-linear regression under various likelhood functions. Robust regression with t-likelihoods and quantile regression are notable special cases.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to
+    pick a license
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+Imports: 
+    Matrix,
+    GIGrvg
+Suggests: 
+    knitr,
+    rmarkdown,
+    lhs
+VignetteBuilder: knitr
+Depends: 
+    R (>= 2.10)
