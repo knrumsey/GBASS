@@ -30,7 +30,7 @@ To install the `GBASS` package, type
 
 ```{R}
 # install.packages("devtools")
-devtools::install_github("knrumsey-lanl/GBASS")
+devtools::install_github("knrumsey/GBASS")
 ```
 
 
