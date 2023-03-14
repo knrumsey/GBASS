@@ -142,7 +142,7 @@ gbass <- function(X, y,
           log_accept_prob_B <- -Inf
         }else{
           #U2_cand <- t(z/v)%*%B_cand%*%U_cand
-          U2_cand <- crossprod(z/v, B_cand)
+          U2_cand <- crossprod(z/v, B_cand)%*%U_cand
           log_accept_prob_B <- sum(log(abs(diag(U_cand))))-sum(log(abs(diag(U)))) +
             1/(2*w*scale)*(TCP(U2_cand)-TCP(U2))
           #Add line here if Sigma != Identity
@@ -185,7 +185,8 @@ gbass <- function(X, y,
       if(isFALSE(U_cand)){
         log_accept_prob_D <- -Inf
       }else{
-        U2_cand <- t(z/v)%*%B_cand%*%U_cand
+        #U2_cand <- t(z/v)%*%B_cand%*%U_cand
+        U2_cand <- crossprod(z/v, B_cand)%*%U_cand
         log_accept_prob_D<- sum(log(abs(diag(U_cand))))-sum(log(abs(diag(U)))) +
           1/(2*w*scale)*(TCP(U2_cand)-TCP(U2))
         #Add line here if Sigma != Identity
@@ -229,7 +230,7 @@ gbass <- function(X, y,
           log_accept_prob_M <- -Inf
         }else{
           #U2_cand <- t(z/v)%*%B_cand%*%U_cand
-          U2_cand <- crossprod(z/v, B_cand)
+          U2_cand <- crossprod(z/v, B_cand)%*%U_cand
           log_accept_prob_M<- sum(log(abs(diag(U_cand))))-sum(log(abs(diag(U)))) +
             1/(2*w*scale)*(sum(U2_cand^2)-sum(U2^2))
           #Add line here if Sigma != Identity
