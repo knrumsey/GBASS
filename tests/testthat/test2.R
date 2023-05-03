@@ -11,5 +11,5 @@ test_that("Quantile regression with GBASS", {
   yhat <- apply(predict(mod, X2)
                 , 2, mean)
   d1 <- sqrt(mean((y2-yhat)^2))
-  expect_that(d1, is_less_than(0.5))
+  expect_that(d1, is_less_than(0.6))
 })

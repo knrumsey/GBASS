@@ -199,9 +199,9 @@ rmpon_sun <- function(n=1, alpha, gamma, mu, max_steps=1e6){
       #xx <- rnorm(1, mu_opt, sqrt(1/(2*beta))) # INCONSISTENCY in the Sun et al paper
       xx <- rnorm(1, mu_opt, 1/(2*beta))
       uu <- log(runif(1))
-      aa <- (alpha-1)*log(xx) - log(mu_opt) + (2*beta*mu_opt-gamma)*(mu_opt-xx)
-      #aa <- (alpha-1)*log(xx*(2*beta*mu_opt - gamma)/(alpha-1)) +
-      #      xx*(gamma - 2*mu_opt*beta) + alpha - 1 # The "corrected" acceptance probability
+      #aa <- (alpha-1)*log(xx) - log(mu_opt) + (2*beta*mu_opt-gamma)*(mu_opt-xx)
+      aa <- (alpha-1)*log(xx*(2*beta*mu_opt - gamma)/(alpha-1)) +
+            xx*(gamma - 2*mu_opt*beta) + alpha - 1 # The "corrected" acceptance probability
       if(xx > 0 & uu < aa){
         return(xx)
       }

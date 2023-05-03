@@ -111,7 +111,10 @@ nwbass2 <- function(X, y,
     cntv <- 0
   }
   tX <- Matrix::t(X)
-  if(verbose) cat("UPDATING\n==============================\n")
+  if(verbose){
+    pr<-c('MCMC iteration',0,myTimestamp(),'nbasis:',M)
+    cat(pr,'\n')
+  }
   for(k in 1:nmcmc){
     if(k == lag_beta) s_beta <- s_beta_hold
     move <- move_type(M, maxBasis, moveProbs)
@@ -316,18 +319,16 @@ nwbass2 <- function(X, y,
       kk <- kk + 1
     }
 
-    if(verbose){
-      if((k%%(nmcmc/10)) == 0){
-        cat("***")
-        #browser()
-      }
+    if(verbose & k%%1000 == 0){
+      pr<-c('MCMC iteration',k,myTimestamp(),'nbasis:',M)
+      cat(pr,'\n')
     }
 
   } #END MCMC ITERATIONS
-  if(verbose) cat("\n")
+
   #browser()
-  obj <- list(M=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lam=lam_mc, a=a_mc, bet=bet_mc, gam=gam_mc, basis=basis_mc, lookup=lookup,
-              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior)
+  obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lamb=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
+              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y)
   class(obj) <- "gbass"
   return(obj)
 } #END FUNCTION

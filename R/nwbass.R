@@ -318,8 +318,8 @@ nwbass <- function(X, y,
   } #END MCMC ITERATIONS
   if(verbose) cat("\n")
   #browser()
-  obj <- list(M=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lam=lam_mc, a=a_mc, bet=bet_mc, gam=gam_mc, basis=basis_mc, lookup=lookup,
-              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior)
+  obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lam=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
+              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc)
   class(obj) <- "gbass"
   return(obj)
 } #END FUNCTION
@@ -340,8 +340,8 @@ nwbass <- function(X, y,
 #' #not yet
 #'
 nw_triangle <- function(obj, add=FALSE, ...){
-  steepness <- (obj$gam+1)^(-1/2)
-  asymmetry <- obj$bet/sqrt(obj$bet^2+obj$gam^2)*(steepness)
+  steepness <- (obj$gamma+1)^(-1/2)
+  asymmetry <- obj$beta/sqrt(obj$beta^2+obj$gamma^2)*(steepness)
   if(!add){
     plot(NULL, xlim=c(-1,1), ylim=c(0, 1), xlab='Asymmetry', ylab='Steepness')
     segments(x0=c(-1, -1, 0), x1=c(1, 0, 1), y0=c(1,1,0), y1=c(1, 0, 1), lwd=3, col=adjustcolor('gray', alpha.f=0.5))
@@ -383,6 +383,14 @@ nw_gamma_prior <- function(q1=0.1, q2=0.9, p1=0.5, p2=0.05, par0=NULL, lambda=0)
   names(par) <- c("m_gamma", "s_gamma")
   return(par)
 }
+
+
+
+
+
+
+
+
 
 
 
