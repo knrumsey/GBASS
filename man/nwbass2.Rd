@@ -7,7 +7,7 @@
 nwbass2(
   X,
   y,
-  w_prior = list(type = "GIG", p = 0, a = 0, b = 0, prop_sigma = 0.2),
+  w_prior = list(type = "GIG", p = -0.1, a = 0, b = 0.1),
   maxInt = 3,
   maxBasis = 1000,
   npart = NULL,

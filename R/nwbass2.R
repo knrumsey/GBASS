@@ -49,7 +49,7 @@
 #'
 #'@export
 nwbass2 <- function(X, y,
-                  w_prior=list(type="GIG", p=0, a=0, b=0, prop_sigma=0.2),
+                  w_prior=list(type="GIG", p=-0.1, a=0, b=0.1),
                   maxInt=3, maxBasis=1000, npart=NULL, nmcmc=10000, nburn=9001, thin=1,
                   moveProbs=rep(1/3,3),
                   a_tau=1/2, b_tau=NULL,
@@ -273,10 +273,19 @@ nwbass2 <- function(X, y,
         if(0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau) > 5000){
           #browser()
         }
-        w_tform <- rmpon_sun(1,
-                         N+M+w_prior$p-1,
-                         0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
-                         bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
+        #w_tform <- rmpon_sun(1,
+        #                 N+M+w_prior$p-1,
+        #                 0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
+        #                 bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
+        deleteme <<- list(w=w_prior, N=N, M=M, r=r, v=v, pen=pen, tau=tau, bet=bet, gam=gam)
+        w_tform <- rMHN(1,
+             N+M-2*w_prior$p+1,
+             0.5*(w_prior$b + + sum(r^2/v)/scale + pen/tau),
+             bet*sum(r)/scale)
+        #w_tform <- rmpon(1,
+        #                 N+M-2*w_prior$p+1,
+        #                 0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
+        #                 bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
         w <- w_tform^-2
       }
     }else{
@@ -299,7 +308,8 @@ nwbass2 <- function(X, y,
       v <- rgbp.vec(as.numeric(v), v_prior, w, scale, as.numeric(r), bet)
     }
 
-    z    <- y - bet*v*sqrt(w) - sqrt(w)*bet/gam
+    #z    <- y - bet*v*sqrt(w) - sqrt(w)*bet/gam # This is the main difference for nwbass2
+    z    <- y - bet*v*sqrt(w)
     Vinv <- Matrix::Diagonal(x=1/v)
     U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
     U2   <- t(z/v)%*%B%*%U
@@ -328,7 +338,7 @@ nwbass2 <- function(X, y,
 
   #browser()
   obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lamb=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
-              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y)
+              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y, scale=scale)
   class(obj) <- "gbass"
   return(obj)
 } #END FUNCTION
