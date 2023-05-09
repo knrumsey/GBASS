@@ -33,5 +33,6 @@ plot.gbass <- function(x, ...){
   curve(dnorm(x, mean(resid), sd(resid)),
         add=TRUE,
         col='red')
+  par(mfrow=c(1,1))
 
 }

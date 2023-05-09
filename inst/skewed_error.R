@@ -11,7 +11,9 @@ y <- apply(X, 1, ff4)*6 - (rgamma(n, 1.5, 1) - 1.5)
 
 #mod2 <- nwbass2(X, y, maxInt=2, m_gamma = 1, s_gamma = 0.1, scale=1000, m_beta=0, s_beta=1)
 mod1 <- bass(X, y)
+tic()
 mod2 <- nwbass2(X, y, maxInt=2, m_gamma=90, s_gamma=25, scale=1, m_beta=0, s_beta=1, lag_beta=100)
+toc()
 plot(mod2)
 
 
