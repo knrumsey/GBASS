@@ -82,7 +82,7 @@ gbass <- function(X, y,
 
   #ALLOCATE STORAGE SPACE
   a_mc <- list()
-  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- ss <- rep(NA, nkeep)
+  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- ss <- bias_mc <- s2_mc <- rep(NA, nkeep)
   v_mc   <- matrix(NA, nrow=nkeep, ncol=N)
   lookup <- basis_mc <- list()
   basis_index <- integer(0)
@@ -105,6 +105,10 @@ gbass <- function(X, y,
   #U2   <- t(z/v)%*%B%*%U
   U    <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
   U2   <- crossprod(z/v, B)%*%U
+  mu_v <- mu_gig(v_prior$p, v_prior$a, v_prior$b)
+  s2_v <- var_gig(v_prior$p, v_prior$a, v_prior$b)
+  bias <- sqrt(w)*bet*mu_v
+  s2   <- scale*w*mu_v + w*bet^2*s2_v
 
   cnt1 <- cnt2 <- rep(0, 3)
   if(w_prior$type == "GBP" || abs(bet) > 1e-9){
@@ -119,6 +123,8 @@ gbass <- function(X, y,
     pr<-c('MCMC iteration',0,myTimestamp(),'nbasis:',M)
     cat(pr,'\n')
   }
+
+
   for(k in 1:nmcmc){
     move <- move_type(M, maxBasis, moveProbs)
     # ======================================================
@@ -306,6 +312,8 @@ gbass <- function(X, y,
     #U2   <- t(z/v)%*%B%*%U
     U     <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
     U2    <- crossprod(z/v, B)%*%U
+    bias <- sqrt(w)*bet*mu_v
+    s2   <- scale*w*mu_v + w*bet^2*s2_v
 
     if(k >= nburn & ((k-nburn) %% thin) == 0){
       ss[kk]     <- mean((y-yhat)^2)
@@ -317,6 +325,8 @@ gbass <- function(X, y,
       v_mc[kk,]  <- v
       basis_mc[[kk]] <- basis_index
       a_mc[[kk]] <- a
+      bias_mc[kk] <- bias
+      s2_mc[kk]  <- s2
       kk <- kk + 1
     }
 
@@ -331,7 +341,7 @@ gbass <- function(X, y,
               tau=tau_mc, lam=lam_mc, beta=bet_mc,
               a=a_mc, basis=basis_mc, lookup=lookup,
               cnt1=cnt1, cnt2=cnt2, ss=ss,
-              v_prior=v_prior, M=M_mc,
+              v_prior=v_prior, M=M_mc, scale=scale, s2=s2_mc, bias=bias_mc,
               X=X, y=y)
   class(obj) <- "gbass"
   return(obj)

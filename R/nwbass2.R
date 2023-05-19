@@ -80,7 +80,7 @@ nwbass2 <- function(X, y,
 
   #ALLOCATE STORAGE SPACE
   a_mc <- list()
-  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- gam_mc <- ss <- rep(NA, nkeep)
+  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- gam_mc <- ss <- bias_mc <- s2_mc <- rep(NA, nkeep)
   v_mc   <- matrix(NA, nrow=nkeep, ncol=N)
   lookup <- basis_mc <- list()
   basis_index <- integer(0)
@@ -101,6 +101,8 @@ nwbass2 <- function(X, y,
   Vinv <- Matrix::Diagonal(x=1/v)
   U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
   U2   <- t(z/v)%*%B%*%U
+  bias <- sqrt(w)*bet*mu_v
+  s2   <- scale*w*mu_v + w*bet^2*s2_v
 
   cnt1 <- cnt2 <- rep(0, 3)
   if(w_prior$type == "GBP" || abs(bet) > 1e-9){
@@ -250,7 +252,8 @@ nwbass2 <- function(X, y,
     tau <- 1/rgamma(1, a_tau+(M+1)/2, b_tau+pen/(2*w))
     bet <- rnorm(1, (s_beta^2*sum(r)/sqrt(w) + scale*m_beta)/(s_beta^2*sum(v) + scale),
                  sqrt(scale*s_beta^2/(s_beta^2*sum(v)+scale)))
-    gam <- rnorm(1, (s_gamma^2*N+m_gamma)/(s_gamma^2*sum(v)+1), s_gamma/sqrt(s_gamma^2*sum(v)+1))
+    gam <- rnorm(1, (s_gamma^2*N+m_gamma)/(s_gamma^2*sum(v)+1),
+                 s_gamma/sqrt(s_gamma^2*sum(v)+1))
     if(w_prior$type == "GIG"){
       if(abs(bet) < 1e-9){
         w_cand <- rgig2(p=w_prior$p - (N+M+1)/2,
@@ -314,6 +317,8 @@ nwbass2 <- function(X, y,
     U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
     U2   <- t(z/v)%*%B%*%U
     #v_prior$a <- gam^2
+    bias <- sqrt(w)*bet*mu_v
+    s2   <- scale*w*mu_v + w*bet^2*s2_v
 
     if(k >= nburn & ((k-nburn) %% thin) == 0){
       ss[kk]     <- mean((y-yhat)^2)
@@ -326,6 +331,8 @@ nwbass2 <- function(X, y,
       v_mc[kk,]  <- v
       basis_mc[[kk]] <- basis_index
       a_mc[[kk]] <- a
+      bias_mc[kk] <- bias
+      s2_mc[kk] <- s2
       kk <- kk + 1
     }
 
@@ -338,7 +345,7 @@ nwbass2 <- function(X, y,
 
   #browser()
   obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lamb=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
-              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y, scale=scale)
+              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y, scale=scale, s2=s2_mc, bias=bias_mc)
   class(obj) <- "gbass"
   return(obj)
 } #END FUNCTION

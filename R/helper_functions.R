@@ -18,6 +18,12 @@ rgig2 <- function(p, a, b){
   res <- ifelse(a==0, 1/rgamma(1, -p, b/2), GIGrvg::rgig(1, lambda=p, psi=a, chi=b))
 }
 rgig2.vec <- Vectorize(rgig2, "b")
+mu_gig <- function(p, a, b){
+  sqrt(b/a)*besselK(sqrt(a*b), p+1)/besselK(sqrt(a*b), p)
+}
+var_gig <- function(p, a, b){
+  (b/a)*(besselK(sqrt(a*b), p+2)/besselK(sqrt(a*b), p) - (besselK(sqrt(a*b), p+1)/besselK(sqrt(a*b), p))^2)
+}
 
 #' Convert GBASS to BASS
 #'
@@ -82,6 +88,7 @@ gm2bm<-function(gm){
     }
   }
 
+  out$xx.des <- gm$X
   out$n.int.des<-n.int.des
   out$signs.des<-signs.des
   out$knots.des<-knots.des
