@@ -1,6 +1,7 @@
-#' Generalized Bayesian MARS (Alternate version where E(eps)=0)
+#' Generalized Bayesian MARS with a NW Likelihood
 #'
-#' An experimental function nwbass with error terms fixed to mean zero.
+#' Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
+#'
 #'
 #' @param X an Nxp matrix of predictor variables.
 #' @param y an Nx1 matrix (or vector) of response values.
@@ -48,7 +49,7 @@
 #' #not yet
 #'
 #'@export
-nwbass2 <- function(X, y,
+nwbass <- function(X, y,
                   w_prior=list(type="GIG", p=-0.1, a=0, b=0.1),
                   maxInt=3, maxBasis=1000, npart=NULL, nmcmc=10000, nburn=9001, thin=1,
                   moveProbs=rep(1/3,3),
@@ -350,4 +351,57 @@ nwbass2 <- function(X, y,
   return(obj)
 } #END FUNCTION
 
+
+#' Generalized Bayesian MARS with a NW Likelihood
+#'
+#' Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
+#'
+#'
+#' @param X an Nxp matrix of predictor variables.
+#' @param y an Nx1 matrix (or vector) of response values.
+#' @param w_prior a named list specifying the prior for the global variance component. See details.
+#' @param v_prior a named list specifying the (shared) prior for the local variance components. See details.
+#' @param maxInt integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.
+#' @param maxBasis maximum number of basis functions. This should probably only be altered if you run out of memory.
+#' @param npart of non-zero points in a basis function. If the response is functional, this refers only to the portion of the basis function coming from the non-functional predictors. Defaults to 20 or 0.1 times the number of observations, whichever is smaller.
+#' @param nmcmc number of mcmc iterations
+#' @param nburn number of burn-in samples
+#' @param thin thinning for mcmc
+#' @param moveProbs a vector defining the probabilities for (i) birth (ii) death and (iii) mutation. Default is rep(1/3,3).
+#' @param a_tau prior for tau
+#' @param b_tau prior for tyau
+#' @param a_lambda prior for lambda
+#' @param b_lambda prior for lambda
+#' @param m_beta prior for beta
+#' @param s_beta prior for beta
+#' @param lag_beta number of steps for which beta is fixed to m_beta (usually zero)
+#' @param m_gamma prior for gamma
+#' @param s_gamma prior for gamma
+#' @param scale fixed variance parameter. default is one.
+#' @param Iw0 vector of nominal weights for degree of interaction, used in generating candidate basis functions. Should have length equal to Jmax and have positive entries.
+#' @param Zw0 vector of nominal weights for variable selection, used in generating candidate basis functions. Should have length equal to ncol(X) and have positive entries.
+#' @param verbose Logical. Should gbass print completion status? Default TRUE
+#' @details Currently, the prior for w and v_i must belong to the class of Generalized inverse Gaussian (GIG) or Generalized Beta Prime (GBP) priors. The list should have the following named fields
+#' \enumerate{
+#'    \item type. either "GIG" or "GBP".
+#'    \item p, a, b. Hyperparameters for the prior. p,a,b > 0 for GBP. See ?rgig2 for details on GIG parameters.
+#'    \item prop_sigma. The proposal standard deviation for Metropolis-Hastings. Only needed if type="GBP" or if type="GIG" and beta is not fixed at zero.
+#'    \item lb. An optional lower bound which truncates the prior for w. This argument is ignored when specified for v_prior.
+#' }
+#' The build_prior function can be used to construct these priors.
+#'
+#' @return The returned value is a named list with components for each of the MCMC parameters. The acceptance rates for each move type is returned. If applicable, we also return acceptance rates for w and the v_i.
+#' @note Some comments about current deficiencies in the code.
+#' \enumerate{
+#'    \item basis function parameters are stored as lists.
+#'    \item burn-in and thinning is not implemented intelligently.
+#'    \item continuous uniform prior for knot locations.
+#'    \item assumes a ridge prior for basis coefficients.
+#' }
+#' @import Matrix
+#' @examples
+#' #not yet
+#'
+#'@export
+nwbass2 <- nwbass
 

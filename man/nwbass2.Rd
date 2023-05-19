@@ -2,7 +2,7 @@
 % Please edit documentation in R/nwbass2.R
 \name{nwbass2}
 \alias{nwbass2}
-\title{Generalized Bayesian MARS (Alternate version where E(eps)=0)}
+\title{Generalized Bayesian MARS with a NW Likelihood}
 \usage{
 nwbass2(
   X,
@@ -84,7 +84,7 @@ nwbass2(
 The returned value is a named list with components for each of the MCMC parameters. The acceptance rates for each move type is returned. If applicable, we also return acceptance rates for w and the v_i.
 }
 \description{
-An experimental function nwbass with error terms fixed to mean zero.
+Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
 }
 \details{
 Currently, the prior for w and v_i must belong to the class of Generalized inverse Gaussian (GIG) or Generalized Beta Prime (GBP) priors. The list should have the following named fields

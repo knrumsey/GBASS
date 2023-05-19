@@ -1,4 +1,4 @@
-#' Generalized Bayesian MARS with a Normal Wald Likelihood
+#' (Depricated) Generalized Bayesian MARS with a Normal Wald Likelihood
 #'
 #' Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
 #'
@@ -45,7 +45,7 @@
 #'               nmcmc=1000, nburn=901)
 #' nw_triangle(mod)
 #'
-nwbass <- function(X, y,
+nwbass_depricated <- function(X, y,
                   w_prior=list(type="GIG", p=0, a=0, b=0, prop_sigma=0.2),
                   maxInt=3, maxBasis=1000, npart=NULL, nmcmc=10000, nburn=9001, thin=1,
                   moveProbs=rep(1/3,3),
