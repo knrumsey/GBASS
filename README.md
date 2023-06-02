@@ -9,7 +9,7 @@ v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/li
 
 GBASS (Generalized Bayesian Additive Spline Surface) is an R package for
 fitting [BASS](https://github.com/cran/BASS) models with flexible
-likelihoods including the $t$, $Horseshoe$, Asymmetric Laplace (for
+likelihoods including the $t$, Horseshoe, Asymmetric Laplace (for
 quantile regression) and Normal-Wald likelihoods.
 
 # Installation
