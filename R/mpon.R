@@ -152,6 +152,7 @@ dmpon <- function(x, alpha, gamma, mu, log=FALSE){
 #' Random generator for the "monomial perturbation of normal" distribution
 #'
 #' A function to generate from the mpon distribution. This is an alternative approach based on Sun et al (2021). Assumes alpha > 1.
+#' (depreciated? See modified half normal distribution)
 #'
 #' @param n currently, n = 1. Changing this argument has no effect on the code.
 #' @param alpha parameter
