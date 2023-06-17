@@ -105,10 +105,12 @@ gbass <- function(X, y,
   #U2   <- t(z/v)%*%B%*%U
   U    <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
   U2   <- crossprod(z/v, B)%*%U
-  mu_v <- mu_gig(v_prior$p, v_prior$a, v_prior$b)
-  s2_v <- var_gig(v_prior$p, v_prior$a, v_prior$b)
-  bias <- sqrt(w)*bet*mu_v
-  s2   <- scale*w*mu_v + w*bet^2*s2_v
+  if(v_prior$type == "GIG"){
+    mu_v <- mu_gig(v_prior$p, v_prior$a, v_prior$b)
+    s2_v <- var_gig(v_prior$p, v_prior$a, v_prior$b)
+    bias <- sqrt(w)*bet*mu_v
+    s2   <- scale*w*mu_v + w*bet^2*s2_v
+  }
 
   cnt1 <- cnt2 <- rep(0, 3)
   if(w_prior$type == "GBP" || abs(bet) > 1e-9){
@@ -312,8 +314,10 @@ gbass <- function(X, y,
     #U2   <- t(z/v)%*%B%*%U
     U     <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
     U2    <- crossprod(z/v, B)%*%U
-    bias <- sqrt(w)*bet*mu_v
-    s2   <- scale*w*mu_v + w*bet^2*s2_v
+    if(v_prior$type == "GIG"){
+      bias <- sqrt(w)*bet*mu_v
+      s2   <- scale*w*mu_v + w*bet^2*s2_v
+    }
 
     if(k >= nburn & ((k-nburn) %% thin) == 0){
       ss[kk]     <- mean((y-yhat)^2)
@@ -325,8 +329,10 @@ gbass <- function(X, y,
       v_mc[kk,]  <- v
       basis_mc[[kk]] <- basis_index
       a_mc[[kk]] <- a
-      bias_mc[kk] <- bias
-      s2_mc[kk]  <- s2
+      if(v_prior$type == "GIG"){
+        bias_mc[kk] <- bias
+        s2_mc[kk]  <- s2
+      }
       kk <- kk + 1
     }
 

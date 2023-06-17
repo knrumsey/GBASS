@@ -62,7 +62,10 @@ nwbass <- function(X, y,
                   verbose=TRUE){
 
   v_prior <- list(type="GIG", p=-1/2, a=1, b=1, prop_sigma=vsig)
+  mu_v <- 1
+  s2_v <- 1
   if(nrow(X) != length(y)) stop("nrow(X) and length(y) should match")
+  maxInt <- min(maxInt, ncol(X))
   if(lag_beta > nburn){
     lag_beta <- nburn
     warning("lag_beta cannot exceed nburn. Setting lag_beta = nburn")

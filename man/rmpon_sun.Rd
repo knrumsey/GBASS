@@ -22,6 +22,7 @@ a random draw from the mpon distribution
 }
 \description{
 A function to generate from the mpon distribution. This is an alternative approach based on Sun et al (2021). Assumes alpha > 1.
+(depreciated? See modified half normal distribution)
 }
 \details{
 Generates a RV with (unnormalized) density function f(x) = x^(alpha-1)exp(-gamma*(x-mu)^2)

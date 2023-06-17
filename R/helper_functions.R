@@ -55,7 +55,7 @@ gm2bm<-function(gm){
 
   out$beta<-beta
   out$nbasis<-gm$M
-  out$p<-8
+  out$p<-ncol(gm$X)
   gm$lookup[[1]]
 
   model.lookup<-1
@@ -75,7 +75,7 @@ gm2bm<-function(gm){
   out$des<-T
   out$func<-F
   out$cat<-F
-  max.int<-3
+  max.int<-max(unlist(lapply(gm$lookup, function(zz) length(zz$s))))
   n.int.des<-matrix(nrow=out$n.models,ncol=maxb)
   signs.des<-vars.des<-knots.des<-array(dim = c(out$n.models,maxb,max.int))
   for(i in 1:out$n.models){
@@ -105,7 +105,7 @@ gm2bm<-function(gm){
   out$maxInt.cat<-0
   out$maxInt.func<-0
 
-  class(out)<-'bass'
+  class(out)<-c('bass', class(gm))
 
   return(out)
 }
