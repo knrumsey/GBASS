@@ -331,6 +331,8 @@ nwbass_depricated <- function(X, y,
 #' A function for plotting the NW Triangle for an object created with nwbass()
 #'
 #' @param obj an object returned by nwbass function
+#' @param add FALSE. Should data be added to an existing plot?
+#' @param details FALSE. Should details about other distributions be included (must have ADD=FALSE)
 #' @return Creates the NW Triangle plot
 #' @details Plots the posterior draws of the steepness and asymmetry parameter, defined as (1+gamma)^(-1/2) and beta/sqrt(gamma^2+beta^2)*steepness respectively.
 #' These parameters are location and scale invariant. Normal (0,0) and Cauchy (0,1) occur as limiting cases.
@@ -339,13 +341,29 @@ nwbass_depricated <- function(X, y,
 #' @examples
 #' #not yet
 #'
-nw_triangle <- function(obj, add=FALSE, ...){
+nw_triangle <- function(obj, add=FALSE, details=FALSE, ...){
   steepness <- (obj$gamma+1)^(-1/2)
   asymmetry <- obj$beta/sqrt(obj$beta^2+obj$gamma^2)*(steepness)
   if(!add){
     plot(NULL, xlim=c(-1,1), ylim=c(0, 1), xlab='Asymmetry', ylab='Steepness')
     segments(x0=c(-1, -1, 0), x1=c(1, 0, 1), y0=c(1,1,0), y1=c(1, 0, 1), lwd=3, col=adjustcolor('gray', alpha.f=0.5))
     #points(c(0,0), c(0, 1), cex=1.5)
+    if(details){
+      points(rep(0, 5), c(1, .9, .5, .1428, 0), pch= 0:4, bg="black")
+      legend('bottomright', c("Cauchy", "t(5)", "t(10)", "t(100)", "Gaussian", "Lnorm(0.5)", "Lnorm(0.1)", "Lnorm(0.01)"),
+             pch=c(0:4,15:17), col=1, bty='n', cex=1.2)
+      cnt <- 0
+      for(a in c(.5, .1, .01)){
+        k = exp(4*a) + 2*exp(3*a) + 3*exp(2*a) - 6
+        s = (exp(a)+2)*sqrt(exp(a)-1)
+        g = 9/(3*k-4*s^2)
+        p = s*sqrt(g)/3
+        xi = (1+abs(g))^(-1/2)
+        chi = p*xi
+        points(chi, xi, pch=15+cnt)
+        cnt <- cnt + 1
+      }
+    }
   }
   points(asymmetry, steepness, ...)
 }
