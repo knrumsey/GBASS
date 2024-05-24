@@ -4,10 +4,14 @@
 \alias{nw_triangle}
 \title{The NW Triangle Plot}
 \usage{
-nw_triangle(obj, add = FALSE, ...)
+nw_triangle(obj, add = FALSE, details = FALSE, ...)
 }
 \arguments{
 \item{obj}{an object returned by nwbass function}
+
+\item{add}{FALSE. Should data be added to an existing plot?}
+
+\item{details}{FALSE. Should details about other distributions be included (must have ADD=FALSE)}
 }
 \value{
 Creates the NW Triangle plot
