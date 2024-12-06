@@ -19,7 +19,7 @@ n <- 100 #Number of observations
 p <- 4   #Number of variables (beyond p = 2, variables are inert)
 X <- matrix(runif(n*p), nrow=n)
 y <- apply(X, 1, ff1)
-gm <- gbass(X, Y, nmcmc=1000, nburn=901)
+gm <- gbass(X, y, nmcmc=1000, nburn=901)
 bm <- gm2bm(gm)
 sob <- sobol(bm)
 plot(sob)

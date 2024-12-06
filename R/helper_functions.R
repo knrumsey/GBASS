@@ -19,10 +19,45 @@ rgig2 <- function(p, a, b){
 }
 rgig2.vec <- Vectorize(rgig2, "b")
 mu_gig <- function(p, a, b){
-  sqrt(b/a)*besselK(sqrt(a*b), p+1)/besselK(sqrt(a*b), p)
+  # Inverse gamma case
+  if(a == 0){
+    if(p >= 0){
+      stop("Invalid parameters for GIG. When a=0, p must be negative")
+    }
+    mu <- -b/(2*(p+1))
+  }
+  # Gamma case
+  if(b == 0){
+    if(p <= 0){
+      stop("Invalid parameters for GIG. When b=0, p must be positive")
+    }
+    mu <- 2*p/a
+  }
+  if(a != 0 & b != 0){
+    mu <- sqrt(b/a)*besselK(sqrt(a*b), p+1)/besselK(sqrt(a*b), p)
+  }
+  return(mu)
 }
+rgig2.vec_fh <- Vectorize(rgig2, c("p", "a"))
 var_gig <- function(p, a, b){
-  (b/a)*(besselK(sqrt(a*b), p+2)/besselK(sqrt(a*b), p) - (besselK(sqrt(a*b), p+1)/besselK(sqrt(a*b), p))^2)
+  # Inverse gamma case
+  if(a == 0){
+    if(p >= 0){
+      stop("Invalid parameters for GIG. When a=0, p must be negative")
+    }
+    sig2 <- -b^2/(4*(p+1)^2*(p+2))
+  }
+  # Gamma case
+  if(b == 0){
+    if(p <= 0){
+      stop("Invalid parameters for GIG. When b=0, p must be positive")
+    }
+    sig2 <- 4*p/a^2
+  }
+  if(a != 0 & b != 0){
+    sig2 = (b/a)*(besselK(sqrt(a*b), p+2)/besselK(sqrt(a*b), p) - (besselK(sqrt(a*b), p+1)/besselK(sqrt(a*b), p))^2)
+  }
+  return(sig2)
 }
 
 #' Convert GBASS to BASS
@@ -38,7 +73,7 @@ var_gig <- function(p, a, b){
 #' p <- 4   #Number of variables (beyond p = 2, variables are inert)
 #' X <- matrix(runif(n*p), nrow=n)
 #' y <- apply(X, 1, ff1)
-#' gm <- gbass(X, Y, nmcmc=1000, nburn=901)
+#' gm <- gbass(X, y, nmcmc=1000, nburn=901)
 #' bm <- gm2bm(gm)
 #' sob <- sobol(bm)
 #' plot(sob)

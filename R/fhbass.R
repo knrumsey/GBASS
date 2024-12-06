@@ -1,11 +1,11 @@
-#' Generalized Bayesian MARS
+#' Fay-Harris BMARS
 #'
-#' A function for Bayesian non-linear regression under various likelihood functions.
+#' A version of BMARS which attempts to replicate the Fay-Harris model.
 #'
 #' @param X an Nxp matrix of predictor variables.
 #' @param y an Nx1 matrix (or vector) of response values.
 #' @param w_prior a named list specifying the prior for the global variance component. See details.
-#' @param v_prior a named list specifying the (shared) prior for the local variance components. See details.
+#' @param v_prior_fh a named list specifying the (not-shared) prior for the local variance components. See details.
 #' @param maxInt integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.
 #' @param maxBasis maximum number of basis functions. This should probably only be altered if you run out of memory.
 #' @param npart of non-zero points in a basis function. If the response is functional, this refers only to the portion of the basis function coming from the non-functional predictors. Defaults to 20 or 0.1 times the number of observations, whichever is smaller.
@@ -23,23 +23,7 @@
 #' @param Iw0 vector of nominal weights for degree of interaction, used in generating candidate basis functions. Should have length equal to Jmax and have positive entries.
 #' @param Zw0 vector of nominal weights for variable selection, used in generating candidate basis functions. Should have length equal to ncol(X) and have positive entries.
 #' @param verbose Logical. Should gbass print completion status? Default TRUE
-#' @details Currently, the prior for w and v_i must belong to the class of Generalized inverse Gaussian (GIG) or Generalized Beta Prime (GBP) priors. The list should have the following named fields
-#' \enumerate{
-#'    \item type. either "GIG" or "GBP".
-#'    \item p, a, b. Hyperparameters for the prior. p,a,b > 0 for GBP. See ?rgig2 for details on GIG parameters.
-#'    \item prop_sigma. The proposal standard deviation for Metropolis-Hastings. Only needed if type="GBP" or if type="GIG" and beta is not fixed at zero.
-#'    \item lb. An optional lower bound which truncates the prior for w. This argument is ignored when specified for v_prior.
-#' }
-#' The build_prior function can be used to construct these priors.
-#'
-#' @return The returned value is a named list with components for each of the MCMC parameters. The acceptance rates for each move type is returned. If applicable, we also return acceptance rates for w and the v_i.
-#' @note Some comments about current deficiencies in the code.
-#' \enumerate{
-#'    \item basis function parameters are stored as lists.
-#'    \item burn-in and thinning is not implemented intelligently.
-#'    \item continuous uniform prior for knot locations.
-#'    \item assumes a ridge prior for basis coefficients.
-#' }
+#' @details The prior \code{v_prior_fh} should be a named list with named fields \code{df} (a scalar) and \code{m, vhat} (n-vectors).
 #' @import Matrix
 #' @export
 #' @examples
@@ -51,9 +35,9 @@
 #'
 #' @export
 #'
-gbass <- function(X, y,
+fhbass <- function(X, y,
                   w_prior=list(type="GIG", p=0, a=0, b=0),
-                  v_prior=list(type="GIG", p=-15, a=0, b=30),
+                  v_prior_fh=list(type="GIG", p=-15, a=0, b=30),
                   maxInt=3, maxBasis=1000, npart=NULL, nmcmc=10000, nburn=9001, thin=1,
                   moveProbs=rep(1/3,3),
                   a_tau=1/2, b_tau=NULL,
@@ -73,7 +57,7 @@ gbass <- function(X, y,
   if(is.null(npart)) npart <- min(20, 0.1*N)
   if(is.null(b_tau)) b_tau <- N/2
   if(is.null(w_prior$lb)) w_prior$lb <- 1/N
-  if(is.null(v_prior$lb)) v_prior$lb <- 0
+  if(is.null(v_prior_fh$lb)) v_prior_fh$lb <- 0
   if((m_beta != 0 | s_beta != 0) & is.null(w_prior$prop_sigma)){
     warning("Setting w_prior$prop_sigma = scale/var(y)/2. Consider specifying w_prior.")
     w_prior$prop_sigma <- var(y)/scale/2
@@ -105,28 +89,23 @@ gbass <- function(X, y,
   #U2   <- t(z/v)%*%B%*%U
   U    <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
   U2   <- crossprod(z/v, B)%*%U
-  if(v_prior$type == "GIG"){
-    mu_v <- mu_gig(v_prior$p, v_prior$a, v_prior$b)
-    s2_v <- var_gig(v_prior$p, v_prior$a, v_prior$b)
-    bias <- sqrt(w)*bet*mu_v
-    s2   <- scale*w*mu_v + w*bet^2*s2_v
-  }
-
   cnt1 <- cnt2 <- rep(0, 3)
   if(w_prior$type == "GBP" || abs(bet) > 1e-9){
     cntw <- 0
-
-  }
-  if(v_prior$type == "GBP"){
-    cntv <- 0
   }
   tX <- t(X)
-
   if(verbose){
     pr<-c('MCMC iteration',0,myTimestamp(),'nbasis:',M)
     cat(pr,'\n')
   }
 
+  ### FAY-HARRIS, SET UP PRIOR FOR V
+  a_df  <- v_prior_fh$df
+  n_lvl <- v_prior_fh$m
+  v_hat <- v_prior_fh$vhat
+  v_prior_fh$p <- a_df*n_lvl/2
+  v_prior_fh$a <- a_df*n_lvl/(2*v_hat)
+  v_prior_fh$b <- 0
 
   for(k in 1:nmcmc){
     move <- move_type(M, maxBasis, moveProbs)
@@ -301,12 +280,12 @@ gbass <- function(X, y,
         w <- w_cand
       }
     }
-    if(v_prior$type == "GIG"){
-      v <- rgig2.vec(p=v_prior$p-1/2,
-                     a=v_prior$a+bet^2/scale,
-                     b=as.numeric(v_prior$b + r^2/(w*scale)))
+    if(v_prior_fh$type == "GIG"){
+      v <- rgig2.vec_fh(p=v_prior_fh$p-1/2,
+                     a=v_prior_fh$a+bet^2/scale,
+                     b=as.numeric(v_prior_fh$b + r^2/(w*scale)))
     }else{
-      v <- rgbp.vec(as.numeric(v), v_prior, w, scale, as.numeric(r), bet)
+      v <- rgbp.vec(as.numeric(v), v_prior_fh, w, scale, as.numeric(r), bet)
     }
 
     z    <- y - bet*v*sqrt(w)
@@ -315,8 +294,7 @@ gbass <- function(X, y,
     #U2   <- t(z/v)%*%B%*%U
     U     <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
     U2    <- crossprod(z/v, B)%*%U
-    if(v_prior$type == "GIG"){
-      #browser()
+    if(v_prior_fh$type == "GIG"){
       bias <- sqrt(w)*bet*mu_v
       s2   <- scale*w*mu_v + w*bet^2*s2_v
     }
@@ -331,7 +309,7 @@ gbass <- function(X, y,
       v_mc[kk,]  <- v
       basis_mc[[kk]] <- basis_index
       a_mc[[kk]] <- a
-      if(v_prior$type == "GIG"){
+      if(v_prior_fh$type == "GIG"){
         bias_mc[kk] <- bias
         s2_mc[kk]  <- s2
       }
@@ -349,39 +327,35 @@ gbass <- function(X, y,
               tau=tau_mc, lam=lam_mc, beta=bet_mc,
               a=a_mc, basis=basis_mc, lookup=lookup,
               cnt1=cnt1, cnt2=cnt2, ss=ss,
-              v_prior=v_prior, M=M_mc, scale=scale, s2=s2_mc, bias=bias_mc,
+              v_prior_fh=v_prior_fh, M=M_mc, scale=scale, s2=s2_mc, bias=bias_mc,
+              a_df=a_df, v_hat=v_hat, n_lvle=n_lvl,
               X=X, y=y)
-  class(obj) <- "gbass"
+  class(obj) <- "fhbass"
   return(obj)
 } #END FUNCTION
 
 
-
-## makes negative values 0
-pos<-function(vec){
-  #replace(vec,vec<0,0)
-  (abs(vec)+vec)/2
-}
-
-## largest value of basis function, assuming x's in [0,1], used for scaling
-const<-function(signs,knots,degree){
-  cc<-prod(((signs+1)/2 - signs*knots))^degree
-  if(cc==0)
-    return(1)
-  return(cc)
-} # since a product, can find for functional & categorical pieces separately, take product
-
-## make basis function (from continuous variables)
-makeBasis<-function(signs,vars,knots,datat,degree){
-  cc<-const(signs,knots,degree)
-  temp1<-pos(signs*(datat[vars,,drop=F]-knots))^degree # this only works for t(data)...
-  if(length(vars)==1){
-    return(c(temp1)/cc)
-  } else{
-    temp2<-1
-    for(pp in 1:length(vars)){ # faster than apply
-      temp2<-temp2*temp1[pp,]
-    }
-    return(temp2/cc)
+## NEED TO UPDATE ALL OF THESE PREDICT FUNCTIONS
+predict.fhbass <- function(object, newdata=NULL, mcmc.use=NULL){
+  if(is.null(newdata)){
+    newdata <- object$X
   }
+  N <- nrow(newdata)
+  if(is.null(mcmc.use)) mcmc.use <- seq_along(object$M)
+  res <- matrix(NA, ncol=length(mcmc.use), nrow=N)
+  tX <- t(newdata)
+  for(i in mcmc.use){
+    basis_curr <- object$lookup[unlist(object$basis[i])]
+    B_curr <- matrix(1, nrow=N, ncol=length(basis_curr)+1)
+    for(m in seq_along(basis_curr)){
+      thetaB <- basis_curr[[m]]
+      B_curr[,m+1] <- makeBasis(thetaB$s,thetaB$u,thetaB$t,tX,1)
+      #for(j in 1:thetaB$J){
+      #  B_curr[,m+1] <- B_curr[,m+1]*pmax(0, thetaB$s[j]*(newdata[,thetaB$u[j]]-thetaB$t[j]))
+      #}
+    }
+    res[,i] <- B_curr%*%object$a[[i]]
+  }
+  return(t(res))
 }
+
