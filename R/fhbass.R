@@ -4,7 +4,7 @@
 #'
 #' @param X an Nxp matrix of predictor variables.
 #' @param y an Nx1 matrix (or vector) of response values.
-#' @param v_prior_fh A vector of delta values (measured variance at each location). See details.
+#' @param d A vector of delta values (measured variance at each location). See details.
 #' @param maxInt integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.
 #' @param maxBasis maximum number of basis functions. This should probably only be altered if you run out of memory.
 #' @param npart of non-zero points in a basis function. If the response is functional, this refers only to the portion of the basis function coming from the non-functional predictors. Defaults to 20 or 0.1 times the number of observations, whichever is smaller.
@@ -29,15 +29,31 @@
 #' @import Matrix
 #' @export
 #' @examples
-#' n <- 100 #Number of observations
-#' p <- 4   #Number of variables (beyond p = 2, variables are inert)
-#' X <- matrix(runif(n*p), nrow=n)
-#' y <- apply(X, 1, ff1)
-#' mod <- gbass(X, y, nmcmc=1000, nburn=901, thin=2)
+#' fm <- function (x){
+#'   x[1]^2 + x[1] * x[2] +  x[2]^3 / 9
+#' }
+#'
+#' fv <- function (x){
+#'   1.3356 * (1.5 * (1 - x[1]) + exp(2 * x[1] - 1) * sin(3 * pi *
+#'     (x[1] - 0.6)^2) + exp(3 * (x[2] - 0.5)) * sin(4 * pi * (x[2] -
+#'      0.9)^2))
+#' }
+#'
+#' # GENERATE DATA
+#' n <- 50
+#' sigma_v <- 0.1
+#' X <- lhs::randomLHS(n, 2)
+#' mu <- apply(X, 1, fm)
+#' mu <- mu / sd(mu)
+#' N_pop <- 1 + round(apply(X, 1, fv))
+#' d <- 1/N_pop
+#' y <- rnorm(n, mu, sqrt(d)) + rnorm(n, 0, sigma_v)
+#'
+#' # Fit model
+#' fit <- fhbass(X, y, d)
 #'
 #' @export
-#'
-fhbass <- function(X, y, v_prior_fh,
+fhbass <- function(X, y, d,
                   maxInt=3, maxBasis=1000, npart=NULL, nmcmc=10000, nburn=9001, thin=1,
                   moveProbs=rep(1/3,3),
                   gamma_v_scale=100, gamma_w_scale=NULL, fh_sample_var=NULL,
@@ -47,7 +63,7 @@ fhbass <- function(X, y, v_prior_fh,
                   scale=1,
                   Iw0 = rep(1, maxInt), Zw0 = rep(1, ncol(X)),
                   verbose=TRUE){
-
+  v_prior_fh <- d
   if(is.null(dim(X))) X <- matrix(X, ncol=1)
   if(max(X) > 1 | min(X) < 0) warning("Found values of X outside of (0, 1).")
   if(nrow(X) != length(y)) stop("nrow(X) and length(y) should match")
