@@ -7,8 +7,7 @@
 fhbass(
   X,
   y,
-  w_prior = list(type = "GIG", p = 0, a = 0, b = 0),
-  v_prior_fh = list(type = "GIG", p = -15, a = 0, b = 30),
+  v_prior_fh,
   maxInt = 3,
   maxBasis = 1000,
   npart = NULL,
@@ -16,6 +15,9 @@ fhbass(
   nburn = 9001,
   thin = 1,
   moveProbs = rep(1/3, 3),
+  gamma_v_scale = 100,
+  gamma_w_scale = NULL,
+  fh_sample_var = NULL,
   a_tau = 1/2,
   b_tau = NULL,
   a_lambda = 1,
@@ -33,9 +35,7 @@ fhbass(
 
 \item{y}{an Nx1 matrix (or vector) of response values.}
 
-\item{w_prior}{a named list specifying the prior for the global variance component. See details.}
-
-\item{v_prior_fh}{a named list specifying the (not-shared) prior for the local variance components. See details.}
+\item{v_prior_fh}{A vector of delta values (measured variance at each location). See details.}
 
 \item{maxInt}{integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.}
 
@@ -50,6 +50,12 @@ fhbass(
 \item{thin}{thinning for mcmc}
 
 \item{moveProbs}{a vector defining the probabilities for (i) birth (ii) death and (iii) mutation. Default is rep(1/3,3).}
+
+\item{gamma_v_scale}{scale of the half-Cauchy prior for \code{gamma_v}.}
+
+\item{gamma_w_scale}{scale of the half-Cauchy prior for \code{gamma_w}.}
+
+\item{fh_sample_var}{a prior guess for the classical Fey-Herriot "sampling error variance". Used to generate prior for \code{gamma_w}.}
 
 \item{a_tau}{prior for tau}
 

@@ -1,11 +1,10 @@
-#' Fay-Harris BMARS
+#' Fay-Herriot BMARS
 #'
-#' A version of BMARS which attempts to replicate the Fay-Harris model.
+#' A version of BMARS which attempts to replicate the Fay-Herriot model.
 #'
 #' @param X an Nxp matrix of predictor variables.
 #' @param y an Nx1 matrix (or vector) of response values.
-#' @param w_prior a named list specifying the prior for the global variance component. See details.
-#' @param v_prior_fh a named list specifying the (not-shared) prior for the local variance components. See details.
+#' @param v_prior_fh A vector of delta values (measured variance at each location). See details.
 #' @param maxInt integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.
 #' @param maxBasis maximum number of basis functions. This should probably only be altered if you run out of memory.
 #' @param npart of non-zero points in a basis function. If the response is functional, this refers only to the portion of the basis function coming from the non-functional predictors. Defaults to 20 or 0.1 times the number of observations, whichever is smaller.
@@ -13,6 +12,9 @@
 #' @param nburn number of burn-in samples
 #' @param thin thinning for mcmc
 #' @param moveProbs a vector defining the probabilities for (i) birth (ii) death and (iii) mutation. Default is rep(1/3,3).
+#' @param gamma_v_scale scale of the half-Cauchy prior for \code{gamma_v}.
+#' @param gamma_w_scale scale of the half-Cauchy prior for \code{gamma_w}.
+#' @param fh_sample_var a prior guess for the classical Fay-Herriot "sampling error variance". Used to generate prior for \code{gamma_w}.
 #' @param a_tau prior for tau
 #' @param b_tau prior for tyau
 #' @param a_lambda prior for lambda
@@ -35,11 +37,10 @@
 #'
 #' @export
 #'
-fhbass <- function(X, y,
-                  w_prior=list(type="GIG", p=0, a=0, b=0),
-                  v_prior_fh=list(type="GIG", p=-15, a=0, b=30),
+fhbass <- function(X, y, v_prior_fh,
                   maxInt=3, maxBasis=1000, npart=NULL, nmcmc=10000, nburn=9001, thin=1,
                   moveProbs=rep(1/3,3),
+                  gamma_v_scale=100, gamma_w_scale=NULL, fh_sample_var=NULL,
                   a_tau=1/2, b_tau=NULL,
                   a_lambda=1, b_lambda=1,
                   m_beta=0, s_beta=0,
@@ -53,20 +54,54 @@ fhbass <- function(X, y,
   N <- nrow(X)
   p <- ncol(X)
   maxInt <- min(ncol(X), maxInt)
+  Iw0 <- Iw0[seq_len(maxInt)]
   nkeep <- length(seq(nburn, nmcmc, by=thin))
   if(is.null(npart)) npart <- min(20, 0.1*N)
   if(is.null(b_tau)) b_tau <- N/2
-  if(is.null(w_prior$lb)) w_prior$lb <- 1/N
-  if(is.null(v_prior_fh$lb)) v_prior_fh$lb <- 0
-  if((m_beta != 0 | s_beta != 0) & is.null(w_prior$prop_sigma)){
-    warning("Setting w_prior$prop_sigma = scale/var(y)/2. Consider specifying w_prior.")
-    w_prior$prop_sigma <- var(y)/scale/2
+  if((m_beta != 0 | s_beta != 0)){
+    w_prior_prop_sigma <- var(y)/scale/2
   }
   if(min(X) < 0 | max(X) > 1) warning("Data out of range (0,1). Are you sure you want to do this?")
 
+  # Fay-Herriot stuff
+  if(length(v_prior_fh) != N) stop("v_prior_fh must be a vector of length = nrow(X)")
+  if(!is.null(gamma_v_scale) && !is.null(fh_sample_var)) stop("Only one of gamma_w_scale or fh_sample_var can be specified.")
+  gamma_v <- gamma_v_scale
+  if(is.null(gamma_w_scale)){
+    if(is.null(fh_sample_var)){
+      fh_sample_var <- var(y)
+    }
+    v_bar <- mean(v_prior_fh)*(1 + 1/gamma_v)
+    gamma_w_scale <- v_bar / (fh_sample_var - v_bar)
+    if(gamma_w_scale <= 0){
+      v_bar <- mean(v_prior_fh)
+      gamma_w_scale <- v_bar / (fh_sample_var - v_bar)
+    }
+    if(gamma_w_scale <= 0){
+      v_bar <- quantile(v_prior_fh, 0.25)
+      gamma_w_scale <- v_bar / (fh_sample_var - v_bar)
+    }
+    if(gamma_w_scale <= 0){
+      stop("Cannot find a good prior for gamma_w. Please specify gamma_w_scale directly.")
+    }
+  }
+  gamma_w <- gamma_w_scale
+
+  delta <- v_prior_fh
+  v_prior_fh <- list(type="GIG", p=1/2, a=gamma_v / delta, b=gamma_v * delta, lb=0)
+  w_prior <- list(type="GIG", p=1/2, a=gamma_w*(1+1/gamma_v), b=gamma_w/(1+1/gamma_v), lb=1/N^2)
+
+  # Initial values
+  prop_sigma_gamma_v <- mean(delta) / 10
+  prop_sigma_gamma_w <- var(y) / 10
+  cnt_gamma_v <- 0
+  cnt_gamma_w <- 0
+  accept_gamma_v <- 0
+  accept_gamma_w <- 0
+
   #ALLOCATE STORAGE SPACE
   a_mc <- list()
-  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- ss <- bias_mc <- s2_mc <- rep(NA, nkeep)
+  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- ss <- bias_mc <- s2_mc <- gamma_v_mc <- gamma_w_mc <- rep(NA, nkeep)
   v_mc   <- matrix(NA, nrow=nkeep, ncol=N)
   lookup <- basis_mc <- list()
   basis_index <- integer(0)
@@ -76,8 +111,8 @@ fhbass <- function(X, y,
   #INITIALIZE PARAMETERS
   M   <- 0
   tau <- (b_tau+.1)/(a_tau+.1)
-  v   <- rep(1, N)
-  w   <- 2*var(y)/scale #Multiply by 2 tries to avoid collapsing to degenerate solution
+  v   <- delta
+  w   <- gamma_w_scale
   lam <- rgamma(1, a_lambda, b_lambda)
   bet <- rnorm(1, m_beta, s_beta)
   a   <- mean(y)
@@ -99,13 +134,6 @@ fhbass <- function(X, y,
     cat(pr,'\n')
   }
 
-  ### FAY-HARRIS, SET UP PRIOR FOR V
-  a_df  <- v_prior_fh$df
-  n_lvl <- v_prior_fh$m
-  v_hat <- v_prior_fh$vhat
-  v_prior_fh$p <- a_df*n_lvl/2
-  v_prior_fh$a <- a_df*n_lvl/(2*v_hat)
-  v_prior_fh$b <- 0
 
   for(k in 1:nmcmc){
     move <- move_type(M, maxBasis, moveProbs)
@@ -257,7 +285,7 @@ fhbass <- function(X, y,
                         b=w_prior$b + sum(r^2/v)/scale + pen/tau)
         w <- ifelse(w_cand < w_prior$lb, w, w_cand)
       }else{
-        w_cand <- exp(log(w) + rnorm(1, 0, w_prior$prop_sigma))
+        w_cand <- exp(log(w) + rnorm(1, 0, w_prior_prop_sigma))
         log_alpha_w <- (w_prior$p - (N+M+1)/2)*(log(w_cand)-log(w)) -
           0.5*(w_prior$a*(w_cand-w) +
                  (w_prior$b + sum(r^2/v)/scale + pen/tau)*(1/w_cand - 1/w) -
@@ -269,24 +297,40 @@ fhbass <- function(X, y,
         }
       }
     }else{
-      w_cand <- exp(log(w) + rnorm(1, 0, w_prior$prop_sigma))
-      log_alpha_w <- (w_prior$p*w_prior$a - (N+M+1)/2)*(log(w_cand)-log(w)) -
-        (sum(r^2/v)/(2*scale) + pen/(2*tau))*(1/w_cand - 1/w) -
-        (w_prior$a + w_prior$b)*(log(1+w_cand^w_prior$p)-log(1+w^w_prior$p)) +
-        bet/scale*sum(r)*(1/sqrt(w_cand) - 1/sqrt(w)) +
-        log(w_cand > w_prior$lb)
-      if(log_alpha_w > log(runif(1))){
-        cntw <- cntw + 1
-        w <- w_cand
-      }
+      stop("Must use GIG prior for Fay-Herriot BASS")
     }
     if(v_prior_fh$type == "GIG"){
       v <- rgig2.vec_fh(p=v_prior_fh$p-1/2,
                      a=v_prior_fh$a+bet^2/scale,
                      b=as.numeric(v_prior_fh$b + r^2/(w*scale)))
     }else{
-      v <- rgbp.vec(as.numeric(v), v_prior_fh, w, scale, as.numeric(r), bet)
+      stop("Must use GIG prior for Fay-Herriot BASS")
     }
+
+    # Update gamma's
+    res_v <- mh_update_gamma(gamma_v, logdens_gamma_v, prop_sigma_gamma_v, gamma_v_scale, cnt_gamma_v)
+    gamma_v <- res_v$gamma
+    cnt_gamma_v <- res_v$cnt
+    accept_gamma_v <- res_v$accept
+
+    res_w <- mh_update_gamma(gamma_w, logdens_gamma_w, prop_sigma_gamma_w, gamma_w_scale, cnt_gamma_w)
+    gamma_w <- res_w$gamma
+    cnt_gamma_w <- res_w$cnt
+    accept_gamma_w <- res_w$accept
+
+    if (k %% 50 == 0) {
+      accept_rate_gamma_v <- accept_gamma_v / 50
+      prop_sigma_gamma_v <- prop_sigma_gamma_v * exp(0.3 * (accept_rate_gamma_v - 0.44))
+      accept_gamma_v <- 0
+
+      accept_rate_gamma_w <- accept_gamma_w / 50
+      prop_sigma_gamma_w <- prop_sigma_gamma_w * exp(0.3 * (accept_rate_gamma_w - 0.44))
+      accept_gamma_w <- 0
+    }
+
+    v_prior_fh <- list(type="GIG", p=1/2, a=gamma_v / delta, b=gamma_v * delta, lb=0)
+    w_prior <- list(type="GIG", p=1/2, a=gamma_w*(1+1/gamma_v), b=gamma_w/(1+1/gamma_v), lb=1/N^2)
+
 
     z    <- y - bet*v*sqrt(w)
     Vinv <- Matrix::Diagonal(x=1/v)
@@ -295,8 +339,8 @@ fhbass <- function(X, y,
     U     <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
     U2    <- crossprod(z/v, B)%*%U
     if(v_prior_fh$type == "GIG"){
-      bias <- sqrt(w)*bet*mu_v
-      s2   <- scale*w*mu_v + w*bet^2*s2_v
+      bias <- sqrt(w)*bet*mean(delta)
+      s2   <- scale*w*mean(delta) + w*bet^2*var(delta)
     }
 
     if(k >= nburn & ((k-nburn) %% thin) == 0){
@@ -309,10 +353,16 @@ fhbass <- function(X, y,
       v_mc[kk,]  <- v
       basis_mc[[kk]] <- basis_index
       a_mc[[kk]] <- a
+
       if(v_prior_fh$type == "GIG"){
         bias_mc[kk] <- bias
         s2_mc[kk]  <- s2
       }
+
+      # Fay-herriot stuff
+      gamma_v_mc[kk] <- gamma_v
+      gamma_w_mc[kk] <- gamma_w
+
       kk <- kk + 1
     }
 
@@ -328,9 +378,9 @@ fhbass <- function(X, y,
               a=a_mc, basis=basis_mc, lookup=lookup,
               cnt1=cnt1, cnt2=cnt2, ss=ss,
               v_prior_fh=v_prior_fh, M=M_mc, scale=scale, s2=s2_mc, bias=bias_mc,
-              a_df=a_df, v_hat=v_hat, n_lvle=n_lvl,
+              gamma_v=gamma_v_mc, gamma_w=gamma_w_mc,
               X=X, y=y)
-  class(obj) <- "fhbass"
+  class(obj) <- "gbass"
   return(obj)
 } #END FUNCTION
 
@@ -359,3 +409,42 @@ predict.fhbass <- function(object, newdata=NULL, mcmc.use=NULL){
   return(t(res))
 }
 
+mh_update_gamma <- function(gamma, logdens, prop_sigma, scale, cnt) {
+  log_gamma_prop <- log(gamma) + rnorm(1, 0, prop_sigma)
+  gamma_prop <- exp(log_gamma_prop)
+
+  log_alpha <- logdens(gamma_prop) - logdens(gamma)
+
+  if (log(runif(1)) < log_alpha) {
+    cnt <- cnt + 1
+    list(gamma = gamma_prop, cnt = cnt, accept = TRUE)
+  } else {
+    list(gamma = gamma, cnt = cnt, accept = FALSE)
+  }
+}
+
+logdens_gamma_v <- function(gv) {
+  a_v <- gv / delta
+  b_v <- gv * delta
+  sum(dgig(v, p = v_prior_fh$p - 1/2, a = a_v, b = b_v, log = TRUE)) +
+    dcauchy(gv, scale = gamma_v_scale, log = TRUE)
+}
+
+logdens_gamma_w <- function(gw) {
+  a_w <- gw * (1 + 1 / gamma_v)
+  b_w <- gw / (1 + 1 / gamma_v)
+  dgig(w, p = w_prior$p - (N + M + 1) / 2, a = a_w, b = b_w, log = TRUE) +
+    dcauchy(gw, scale = gamma_w_scale, log = TRUE)
+}
+
+dgig <- function(x, p, a, b, log = FALSE) {
+  if (any(x <= 0)) stop("x must be positive")
+
+  sqrt_ab <- sqrt(a * b)
+  log_c <- (p - 1) * log(x) - 0.5 * (a * x + b / x)
+  log_norm <- -log(2) - log(besselK(sqrt_ab, p)) + (p * log(sqrt(b / a)))
+
+  out <- log_c - log_norm
+  if (log) return(out)
+  else return(exp(out))
+}
