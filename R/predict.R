@@ -16,6 +16,7 @@ predict.gbass <- function(object, newdata=NULL, mcmc.use=NULL){
   if(is.null(mcmc.use)) mcmc.use <- seq_along(object$M)
   res <- matrix(NA, ncol=length(mcmc.use), nrow=N)
   tX <- t(newdata)
+  cnt <- 1
   for(i in mcmc.use){
     basis_curr <- object$lookup[unlist(object$basis[i])]
     B_curr <- matrix(1, nrow=N, ncol=length(basis_curr)+1)
@@ -26,7 +27,8 @@ predict.gbass <- function(object, newdata=NULL, mcmc.use=NULL){
       #  B_curr[,m+1] <- B_curr[,m+1]*pmax(0, thetaB$s[j]*(newdata[,thetaB$u[j]]-thetaB$t[j]))
       #}
     }
-    res[,i] <- B_curr%*%object$a[[i]]
+    res[,cnt] <- B_curr%*%object$a[[i]]
+    cnt <- cnt + 1
   }
   return(t(res))
 }
