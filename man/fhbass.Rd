@@ -2,12 +2,12 @@
 % Please edit documentation in R/fhbass.R
 \name{fhbass}
 \alias{fhbass}
-\title{Fay-Harris BMARS}
+\title{Fay-Herriot BMARS}
 \usage{
 fhbass(
   X,
   y,
-  v_prior_fh,
+  d,
   maxInt = 3,
   maxBasis = 1000,
   npart = NULL,
@@ -35,7 +35,7 @@ fhbass(
 
 \item{y}{an Nx1 matrix (or vector) of response values.}
 
-\item{v_prior_fh}{A vector of delta values (measured variance at each location). See details.}
+\item{d}{A vector of delta values (measured variance at each location). See details.}
 
 \item{maxInt}{integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.}
 
@@ -55,7 +55,7 @@ fhbass(
 
 \item{gamma_w_scale}{scale of the half-Cauchy prior for \code{gamma_w}.}
 
-\item{fh_sample_var}{a prior guess for the classical Fey-Herriot "sampling error variance". Used to generate prior for \code{gamma_w}.}
+\item{fh_sample_var}{a prior guess for the classical Fay-Herriot "sampling error variance". Used to generate prior for \code{gamma_w}.}
 
 \item{a_tau}{prior for tau}
 
@@ -78,16 +78,33 @@ fhbass(
 \item{verbose}{Logical. Should gbass print completion status? Default TRUE}
 }
 \description{
-A version of BMARS which attempts to replicate the Fay-Harris model.
+A version of BMARS which attempts to replicate the Fay-Herriot model.
 }
 \details{
 The prior \code{v_prior_fh} should be a named list with named fields \code{df} (a scalar) and \code{m, vhat} (n-vectors).
 }
 \examples{
-n <- 100 #Number of observations
-p <- 4   #Number of variables (beyond p = 2, variables are inert)
-X <- matrix(runif(n*p), nrow=n)
-y <- apply(X, 1, ff1)
-mod <- gbass(X, y, nmcmc=1000, nburn=901, thin=2)
+fm <- function (x){
+  x[1]^2 + x[1] * x[2] +  x[2]^3 / 9
+}
+
+fv <- function (x){
+  1.3356 * (1.5 * (1 - x[1]) + exp(2 * x[1] - 1) * sin(3 * pi *
+    (x[1] - 0.6)^2) + exp(3 * (x[2] - 0.5)) * sin(4 * pi * (x[2] -
+     0.9)^2))
+}
+
+# GENERATE DATA
+n <- 50
+sigma_v <- 0.1
+X <- lhs::randomLHS(n, 2)
+mu <- apply(X, 1, fm)
+mu <- mu / sd(mu)
+N_pop <- 1 + round(apply(X, 1, fv))
+d <- 1/N_pop
+y <- rnorm(n, mu, sqrt(d)) + rnorm(n, 0, sigma_v)
+
+# Fit model
+fit <- fhbass(X, y, d)
 
 }

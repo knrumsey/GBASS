@@ -9,7 +9,7 @@ myTimestamp<-function(){
   x<-Sys.time()
   paste('#--',format(x,"%b %d %X"),'--#')
 }
-scale.range<-function(x,r=NULL){ # x is a vector
+scale_range<-function(x,r=NULL){ # x is a vector
   if(is.null(r))
     r<-range(x)
   if((r[2]-r[1])==0)
@@ -17,7 +17,7 @@ scale.range<-function(x,r=NULL){ # x is a vector
   return((x-r[1])/(r[2]-r[1]))
 }
 ## rescale a vector between 0 and 1 to range r
-unscale.range<-function(x,r){
+unscale_range<-function(x,r){
   x*(r[2]-r[1])+r[1]
 }
 
@@ -54,7 +54,7 @@ unscale.range<-function(x,r){
 #' # See examples in bass documentation.
 #'
 sobol<-function(bassMod,prior=NULL,prior.func=NULL,mcmc.use=NULL,func.var=NULL,xx.func.var=NULL,verbose=TRUE,getEffects=FALSE){
-  if(class(bassMod)!='bass')
+  if(!('bass' %in% class(bassMod)))
     stop('First input needs to be a bass object')
   if(bassMod$p==1 & !bassMod$func)
     stop('Sobol only used for multiple input models')
@@ -127,13 +127,13 @@ sobol<-function(bassMod,prior=NULL,prior.func=NULL,mcmc.use=NULL,func.var=NULL,x
         prior[[i]]$trunc<-bassMod$range.des[,i]#c(0,1)
       }
 
-      prior[[i]]$trunc<-scale.range(prior[[i]]$trunc,bassMod$range.des[,i])
+      prior[[i]]$trunc<-scale_range(prior[[i]]$trunc,bassMod$range.des[,i])
       if(prior[[i]]$trunc[1]<0 | prior[[i]]$trunc[2]>1)
         warning('truncation range larger than training range...it is unwise to ask an emulator to extrapolate.')
       #browser()
 
       if(prior[[i]]$dist %in% c('normal','student')){
-        prior[[i]]$mean<-scale.range(prior[[i]]$mean,bassMod$range.des[,i])
+        prior[[i]]$mean<-scale_range(prior[[i]]$mean,bassMod$range.des[,i])
         prior[[i]]$sd<-prior[[i]]$sd/(bassMod$range.des[2,i]-bassMod$range.des[1,i])
         if(prior[[i]]$dist == 'normal'){
           prior[[i]]$z<-pnorm((prior[[i]]$trunc[2]-prior[[i]]$mean)/prior[[i]]$sd) - pnorm((prior[[i]]$trunc[1]-prior[[i]]$mean)/prior[[i]]$sd)
@@ -154,13 +154,13 @@ sobol<-function(bassMod,prior=NULL,prior.func=NULL,mcmc.use=NULL,func.var=NULL,x
         prior.func[[i]]$trunc<-bassMod$range.func[,i]#c(0,1)
       }
 
-      prior.func[[i]]$trunc<-scale.range(prior.func[[i]]$trunc,bassMod$range.func[,i])
+      prior.func[[i]]$trunc<-scale_range(prior.func[[i]]$trunc,bassMod$range.func[,i])
       if(prior.func[[i]]$trunc[1]<0 | prior.func[[i]]$trunc[2]>1)
         stop('truncation range of functional variable larger than training range...it is unwise to ask an emulator to extrapolate.')
       #browser()
 
       if(prior.func[[i]]$dist %in% c('normal','student')){
-        prior.func[[i]]$mean<-scale.range(prior.func[[i]]$mean,bassMod$range.func[,i])
+        prior.func[[i]]$mean<-scale_range(prior.func[[i]]$mean,bassMod$range.func[,i])
         prior.func[[i]]$sd<-prior.func[[i]]$sd/(bassMod$range.func[2,i]-bassMod$range.func[1,i])
         if(prior.func[[i]]$dist == 'normal'){
           prior.func[[i]]$z<-pnorm((prior.func[[i]]$trunc[2]-prior.func[[i]]$mean)/prior.func[[i]]$sd) - pnorm((prior.func[[i]]$trunc[1]-prior.func[[i]]$mean)/prior.func[[i]]$sd)
@@ -180,11 +180,11 @@ sobol<-function(bassMod,prior=NULL,prior.func=NULL,mcmc.use=NULL,func.var=NULL,x
   #     if(is.null(prior.func[[i]]$trunc)){
   #       prior.func[[i]]$trunc<-c(0,1)
   #     } else{
-  #       prior.func[[i]]$trunc<-scale.range(prior.func[[i]]$trunc,bassMod$range.func[,i])
+  #       prior.func[[i]]$trunc<-scale_range(prior.func[[i]]$trunc,bassMod$range.func[,i])
   #     }
   #
   #     if(prior.func[[i]]$dist %in% c('normal','student')){
-  #       prior.func[[i]]$mean<-scale.range(prior.func[[i]]$mean,bassMod$range.func[,i])
+  #       prior.func[[i]]$mean<-scale_range(prior.func[[i]]$mean,bassMod$range.func[,i])
   #       prior.func[[i]]$sd<-prior.func[[i]]$sd/(bassMod$range.func[2,i]-bassMod$range.func[1,i])
   #       if(prior.func[[i]]$dist == 'normal'){
   #         prior.func[[i]]$z<-pnorm((prior.func[[i]]$trunc[2]-prior.func[[i]]$mean)/prior.func[[i]]$sd) - pnorm((prior.func[[i]]$trunc[1]-prior.func[[i]]$mean)/prior.func[[i]]$sd)
@@ -235,7 +235,7 @@ sobol<-function(bassMod,prior=NULL,prior.func=NULL,mcmc.use=NULL,func.var=NULL,x
       rr<-range(xx.func.var)
       if(rr[1]<bassMod$range.func[1,func.var] | rr[2]>bassMod$range.func[2,func.var])
         warning(paste('range of func.var in bass function (',bassMod$range.func[1,func.var],',',bassMod$range.func[2,func.var],') is smaller than range of xx.func.var (',rr[1],',',rr[2],'), indicating some extrapolation',sep=''))
-      xx.func.var<-scale.range(xx.func.var,bassMod$range.func[,func.var])
+      xx.func.var<-scale_range(xx.func.var,bassMod$range.func[,func.var])
     }
     return(sobol_des_func(bassMod=bassMod,mcmc.use=mcmc.use,verbose=verbose,func.var=func.var,xx.func.var=xx.func.var,prior=prior,prior.cat=prior.cat))
   } else{
@@ -630,7 +630,7 @@ sobol_des_func<-function(bassMod,mcmc.use,verbose,func.var,xx.func.var,prior,pri
   #if(any(sob2<0))
   #  browser()
 
-  ret<-list(S=sob2,S.var=sob,names.ind=unlist(allCombs$dispNames)[sob.reorder],xx=unscale.range(tl$xx,bassMod$range.func),func=T,prior=prior)
+  ret<-list(S=sob2,S.var=sob,names.ind=unlist(allCombs$dispNames)[sob.reorder],xx=unscale_range(tl$xx,bassMod$range.func),func=T,prior=prior)
   class(ret)<-'bassSob'
   return(ret)
 }
@@ -945,10 +945,12 @@ C1All<-function(tl){
 intabq1 <- function (prior, ...) {
   UseMethod("intabq1", prior)
 }
+#' @export
 intabq1.uniform<-function(prior,a,b,t,q){
   1/(q+1)*((b-t)^(q+1)-(a-t)^(q+1)) * 1/(prior$trunc[2]-prior$trunc[1])
   #int<-integrate(function(x) (x-t)*dunif(x,prior$trunc[1],prior$trunc[2]),lower=a,upper=b)$value
 }
+#' @export
 intabq1.normal<-function(prior,a,b,t,q){
   if(q!=1)
     stop('degree other than 1 not supported for normal priors')
@@ -967,6 +969,7 @@ intabq1.normal<-function(prior,a,b,t,q){
   }
   out
 }
+#' @export
 intabq1.student<-function(prior,a,b,t,q){
   if(q!=1)
     stop('degree other than 1 not supported for student priors')
@@ -1069,10 +1072,12 @@ pCoef<-function(i,q){
 intabq2 <- function (prior, ...) {
   UseMethod("intabq2", prior)
 }
+#' @export
 intabq2.uniform<-function(prior,a,b,t1,t2,q){
   (sum(pCoef(0:q,q)*(b-t1)^(q-0:q)*(b-t2)^(q+1+0:q)) - sum(pCoef(0:q,q)*(a-t1)^(q-0:q)*(a-t2)^(q+1+0:q))) * 1/(prior$trunc[2]-prior$trunc[1])
   #integrate(function(x) (x-t1)*(x-t2)*dunif(x,prior$trunc[1],prior$trunc[2]),lower=a,upper=b)$value
 }
+#' @export
 intabq2.normal<-function(prior,a,b,t1,t2,q){
   if(q>1)
     stop('spline degree >1 not supported yet')
@@ -1095,6 +1100,7 @@ intabq2.normal<-function(prior,a,b,t1,t2,q){
   #browser()
   out
 }
+#' @export
 intabq2.student<-function(prior,a,b,t1,t2,q){
   out<-0
   for(k in 1:length(prior$weights)){

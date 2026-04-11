@@ -2,37 +2,38 @@
 % Please edit documentation in R/predict.R
 \name{buildB}
 \alias{buildB}
-\title{#' Predict function for class "gbmars" (Depreciated)
+\title{#' Predict function for class "gbass" (deprecated)
 #'
 #' This function generates posterior predictions using predictors Xnew and a model of class "gbmars"
 #'
-#' @param model an object of class "gbmars" created by the gbmars() function.
-#' @param Xnew a matrix of predictor variables with ncol(Xnew) == ncol(X)
-#' @param burn burn-in
-#' @param thin thinning
-#' @details add stuff here
-#' @examples
-#' foo <- 1 + 1
+#' @param object an object of class "gbass" created by the gbass, tbass or hbass functions
+#' @param newdata a matrix of predictor variables with ncol(newdata) == ncol(X)
+#' @param mcmc.use a vector subsetting which posterior samples to use for prediction. Default is to retain all samples.
+#' @details Returns a matrix of posterior predictions.
 #'
-predict.gbmars <- function(model, Xnew, burn=1, thin=1){
-N <- nrow(Xnew)
-p <- ncol(Xnew)
-K <- model$nsamp
-index <- seq((burn+1), model$iter, by=thin)
-y <- matrix(NA, nrow=length(index), ncol=N)
-cnt <- 1
-for(k in index){
-a_temp <- model$a[\link{k}]
-B_temp <- buildB(model, Xnew, k)
-y\link{cnt,} <- as.numeric(B_temp\%*\%a_temp)
-cnt <- cnt + 1
+#' @export
+predict.gbass_dep <- function(object, newdata=NULL, mcmc.use=NULL){
+if(is.null(newdata)){
+newdata <- object$X
 }
-return(y)
-}}
-\usage{
-buildB(model, Xnew, k)
+N <- nrow(newdata)
+if(is.null(mcmc.use)) mcmc.use <- seq_along(object$M)
+res <- matrix(NA, ncol=length(mcmc.use), nrow=N)
+tX <- t(newdata)
+for(i in mcmc.use){
+basis_curr <- object$lookup[unlist(object$basis\link{i})]
+B_curr <- matrix(1, nrow=N, ncol=length(basis_curr)+1)
+for(m in seq_along(basis_curr)){
+thetaB <- basis_curr[\link{m}]
+B_curr\link{,m+1} <- makeBasis(thetaB$s,thetaB$u,thetaB$t,tX,1)
+#for(j in 1:thetaB$J){
+#  B_curr\link{,m+1} <- B_curr\link{,m+1}\emph{pmax(0, thetaB$s\link{j}}(newdata[,thetaB$u\link{j}]-thetaB$t\link{j}))
+#}
 }
-\description{
+res\link{,i} <- B_curr\%\emph{\%object$a[\link{i}]
+}
+return(t(res))
+}
 #' Predict function for class "gbmars" (Depreciated)
 #'
 #' This function generates posterior predictions using predictors Xnew and a model of class "gbmars"
@@ -55,7 +56,70 @@ cnt <- 1
 for(k in index){
 a_temp <- model$a[\link{k}]
 B_temp <- buildB(model, Xnew, k)
-y\link{cnt,} <- as.numeric(B_temp\%*\%a_temp)
+y\link{cnt,} <- as.numeric(B_temp\%}\%a_temp)
+cnt <- cnt + 1
+}
+return(y)
+}}
+\usage{
+buildB(model, Xnew, k)
+}
+\description{
+#' Predict function for class "gbass" (deprecated)
+#'
+#' This function generates posterior predictions using predictors Xnew and a model of class "gbmars"
+#'
+#' @param object an object of class "gbass" created by the gbass, tbass or hbass functions
+#' @param newdata a matrix of predictor variables with ncol(newdata) == ncol(X)
+#' @param mcmc.use a vector subsetting which posterior samples to use for prediction. Default is to retain all samples.
+#' @details Returns a matrix of posterior predictions.
+#'
+#' @export
+predict.gbass_dep <- function(object, newdata=NULL, mcmc.use=NULL){
+if(is.null(newdata)){
+newdata <- object$X
+}
+N <- nrow(newdata)
+if(is.null(mcmc.use)) mcmc.use <- seq_along(object$M)
+res <- matrix(NA, ncol=length(mcmc.use), nrow=N)
+tX <- t(newdata)
+for(i in mcmc.use){
+basis_curr <- object$lookup[unlist(object$basis\link{i})]
+B_curr <- matrix(1, nrow=N, ncol=length(basis_curr)+1)
+for(m in seq_along(basis_curr)){
+thetaB <- basis_curr[\link{m}]
+B_curr\link{,m+1} <- makeBasis(thetaB$s,thetaB$u,thetaB$t,tX,1)
+#for(j in 1:thetaB$J){
+#  B_curr\link{,m+1} <- B_curr\link{,m+1}\emph{pmax(0, thetaB$s\link{j}}(newdata[,thetaB$u\link{j}]-thetaB$t\link{j}))
+#}
+}
+res\link{,i} <- B_curr\%\emph{\%object$a[\link{i}]
+}
+return(t(res))
+}
+#' Predict function for class "gbmars" (Depreciated)
+#'
+#' This function generates posterior predictions using predictors Xnew and a model of class "gbmars"
+#'
+#' @param model an object of class "gbmars" created by the gbmars() function.
+#' @param Xnew a matrix of predictor variables with ncol(Xnew) == ncol(X)
+#' @param burn burn-in
+#' @param thin thinning
+#' @details add stuff here
+#' @examples
+#' foo <- 1 + 1
+#'
+predict.gbmars <- function(model, Xnew, burn=1, thin=1){
+N <- nrow(Xnew)
+p <- ncol(Xnew)
+K <- model$nsamp
+index <- seq((burn+1), model$iter, by=thin)
+y <- matrix(NA, nrow=length(index), ncol=N)
+cnt <- 1
+for(k in index){
+a_temp <- model$a[\link{k}]
+B_temp <- buildB(model, Xnew, k)
+y\link{cnt,} <- as.numeric(B_temp\%}\%a_temp)
 cnt <- cnt + 1
 }
 return(y)

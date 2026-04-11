@@ -81,7 +81,7 @@ fhbass <- function(X, y, d,
 
   # Fay-Herriot stuff
   if(length(v_prior_fh) != N) stop("v_prior_fh must be a vector of length = nrow(X)")
-  if(!is.null(gamma_v_scale) && !is.null(fh_sample_var)) stop("Only one of gamma_w_scale or fh_sample_var can be specified.")
+  if(!is.null(gamma_w_scale) && !is.null(fh_sample_var)) stop("Only one of gamma_w_scale or fh_sample_var can be specified.")
   gamma_v <- gamma_v_scale
   if(is.null(gamma_w_scale)){
     if(is.null(fh_sample_var)){
@@ -402,6 +402,7 @@ fhbass <- function(X, y, d,
 
 
 ## NEED TO UPDATE ALL OF THESE PREDICT FUNCTIONS
+#' @export
 predict.fhbass <- function(object, newdata=NULL, mcmc.use=NULL){
   if(is.null(newdata)){
     newdata <- object$X

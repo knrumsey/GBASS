@@ -320,8 +320,12 @@ nwbass <- function(X, y,
     Vinv <- Matrix::Diagonal(x=1/v)
     U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
     U2   <- t(z/v)%*%B%*%U
-    #v_prior$a <- gam^2
-    bias <- sqrt(w)*bet*mu_v
+    #bias <- sqrt(w)*bet*mu_v
+    #s2   <- scale*w*mu_v + w*bet^2*s2_v
+    v_prior$a <- gam^2
+    mu_v <- mu_gig(v_prior$p, v_prior$a, v_prior$b)
+    s2_v <- var_gig(v_prior$p, v_prior$a, v_prior$b)
+    bias <- sqrt(w) * bet * mu_v
     s2   <- scale*w*mu_v + w*bet^2*s2_v
 
     if(k >= nburn & ((k-nburn) %% thin) == 0){
@@ -350,7 +354,7 @@ nwbass <- function(X, y,
   #browser()
   obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lamb=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
               cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y, scale=scale, s2=s2_mc, bias=bias_mc)
-  class(obj) <- "gbass"
+  class(obj) <- c("nwbass", "gbass")
   return(obj)
 } #END FUNCTION
 
