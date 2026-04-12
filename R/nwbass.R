@@ -1,4 +1,4 @@
-#' (Depricated) Generalized Bayesian MARS with a Normal Wald Likelihood
+#' Generalized Bayesian MARS with a NW Likelihood
 #'
 #' Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
 #'
@@ -23,49 +23,57 @@
 #' @param lag_beta number of steps for which beta is fixed to m_beta (usually zero)
 #' @param m_gamma prior for gamma
 #' @param s_gamma prior for gamma
-#' @param vsig proposal sd for v_i
 #' @param scale fixed variance parameter. default is one.
 #' @param Iw0 vector of nominal weights for degree of interaction, used in generating candidate basis functions. Should have length equal to Jmax and have positive entries.
 #' @param Zw0 vector of nominal weights for variable selection, used in generating candidate basis functions. Should have length equal to ncol(X) and have positive entries.
 #' @param verbose Logical. Should gbass print completion status? Default TRUE
-#' @details See details for gbass(). Additionally, a normal prior must be specified for asymmetry parameter (beta) and tail heaviness parameter (gamma)
-#' See also nw_gamma_prior() and nw_triangle()
+#' @details Currently, the prior for w and v_i must belong to the class of Generalized inverse Gaussian (GIG) or Generalized Beta Prime (GBP) priors. The list should have the following named fields
+#' \enumerate{
+#'    \item type. either "GIG" or "GBP".
+#'    \item p, a, b. Hyperparameters for the prior. p,a,b > 0 for GBP. See ?rgig2 for details on GIG parameters.
+#'    \item prop_sigma. The proposal standard deviation for Metropolis-Hastings. Only needed if type="GBP" or if type="GIG" and beta is not fixed at zero.
+#'    \item lb. An optional lower bound which truncates the prior for w. This argument is ignored when specified for v_prior.
+#' }
+#' The build_prior function can be used to construct these priors.
 #'
 #' @return The returned value is a named list with components for each of the MCMC parameters. The acceptance rates for each move type is returned. If applicable, we also return acceptance rates for w and the v_i.
+#' @note Some comments about current deficiencies in the code.
+#' \enumerate{
+#'    \item basis function parameters are stored as lists.
+#'    \item burn-in and thinning is not implemented intelligently.
+#'    \item continuous uniform prior for knot locations.
+#'    \item assumes a ridge prior for basis coefficients.
+#' }
 #' @import Matrix
-#' @export
 #' @examples
-#' n <- 100 #Number of observations
-#' p <- 4   #Number of variables (beyond p = 2, variables are inert)
-#' X <- matrix(runif(n*p), nrow=n)
-#' y <- apply(X, 1, ff1)
-#' y <- y + rgamma(n, 1, 0.1)/4
-#' gamma_prior <- nw_gamma_prior(p1=0.5, p2=1e-4) #Get reccomended prior for gamma
-#' mod <- nwbass(X, y, m_beta=0, s_beta=30, m_gamma=gamma_prior[1], s_gamma=gamma_prior[2],
-#'               nmcmc=1000, nburn=901)
-#' nw_triangle(mod)
+#' #not yet
 #'
-nwbass_depricated <- function(X, y,
-                  w_prior=list(type="GIG", p=0, a=0, b=0, prop_sigma=0.2),
+#'@export
+nwbass <- function(X, y,
+                  w_prior=list(type="GIG", p=-0.1, a=0, b=0.1),
                   maxInt=3, maxBasis=1000, npart=NULL, nmcmc=10000, nburn=9001, thin=1,
                   moveProbs=rep(1/3,3),
                   a_tau=1/2, b_tau=NULL,
                   a_lambda=1, b_lambda=1,
-                  m_beta=0, s_beta=100, lag_beta=round(nmcmc*0.5),
+                  m_beta=0, s_beta=0, lag_beta=1001,
                   m_gamma=1, s_gamma=0, vsig=0.25,
                   scale=1,
                   Iw0 = rep(1, maxInt), Zw0 = rep(1, ncol(X)),
                   verbose=TRUE){
 
   v_prior <- list(type="GIG", p=-1/2, a=1, b=1, prop_sigma=vsig)
+  mu_v <- 1
+  s2_v <- 1
   if(nrow(X) != length(y)) stop("nrow(X) and length(y) should match")
-  if(w_prior$a != 0) warning("Gibbs sampler assumes w_prior$a = 0")
+  maxInt <- min(maxInt, ncol(X))
   if(lag_beta > nburn){
     lag_beta <- nburn
     warning("lag_beta cannot exceed nburn. Setting lag_beta = nburn")
   }
   s_beta_hold <- s_beta
-  s_beta <- 0
+  if(lag_beta > 0){
+    s_beta <- 0
+  }
   N <- nrow(X)
   p <- ncol(X)
   nkeep <- length(seq(nburn, nmcmc, by=thin))
@@ -76,7 +84,7 @@ nwbass_depricated <- function(X, y,
 
   #ALLOCATE STORAGE SPACE
   a_mc <- list()
-  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- gam_mc <- ss <- rep(NA, nkeep)
+  M_mc <- lam_mc <- tau_mc <- w_mc <- bet_mc <- gam_mc <- ss <- bias_mc <- s2_mc <- rep(NA, nkeep)
   v_mc   <- matrix(NA, nrow=nkeep, ncol=N)
   lookup <- basis_mc <- list()
   basis_index <- integer(0)
@@ -88,7 +96,7 @@ nwbass_depricated <- function(X, y,
   tau <- (b_tau+.1)/(a_tau+.1)
   gam <- 1
   v   <- rep(1, N)
-  w   <- 2*var(y)/scale #Multiply by 2 tries to avoid collapsing to degenerate solution
+  w   <- 1*var(y)/scale #Multiply by 2 tries to avoid collapsing to degenerate solution
   lam <- rgamma(1, a_lambda, b_lambda)
   bet <- rnorm(1, m_beta, s_beta)
   a   <- mean(y)
@@ -97,6 +105,8 @@ nwbass_depricated <- function(X, y,
   Vinv <- Matrix::Diagonal(x=1/v)
   U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
   U2   <- t(z/v)%*%B%*%U
+  bias <- sqrt(w)*bet*mu_v
+  s2   <- scale*w*mu_v + w*bet^2*s2_v
 
   cnt1 <- cnt2 <- rep(0, 3)
   if(w_prior$type == "GBP" || abs(bet) > 1e-9){
@@ -107,7 +117,10 @@ nwbass_depricated <- function(X, y,
     cntv <- 0
   }
   tX <- Matrix::t(X)
-  if(verbose) cat("UPDATING\n==============================\n")
+  if(verbose){
+    pr<-c('MCMC iteration',0,myTimestamp(),'nbasis:',M)
+    cat(pr,'\n')
+  }
   for(k in 1:nmcmc){
     if(k == lag_beta) s_beta <- s_beta_hold
     move <- move_type(M, maxBasis, moveProbs)
@@ -243,7 +256,8 @@ nwbass_depricated <- function(X, y,
     tau <- 1/rgamma(1, a_tau+(M+1)/2, b_tau+pen/(2*w))
     bet <- rnorm(1, (s_beta^2*sum(r)/sqrt(w) + scale*m_beta)/(s_beta^2*sum(v) + scale),
                  sqrt(scale*s_beta^2/(s_beta^2*sum(v)+scale)))
-    gam <- rnorm(1, (s_gamma^2*N+m_gamma)/(s_gamma^2*sum(v)+1), s_gamma/sqrt(s_gamma^2*sum(v)+1))
+    gam <- rnorm(1, (s_gamma^2*N+m_gamma)/(s_gamma^2*sum(v)+1),
+                 s_gamma/sqrt(s_gamma^2*sum(v)+1))
     if(w_prior$type == "GIG"){
       if(abs(bet) < 1e-9){
         w_cand <- rgig2(p=w_prior$p - (N+M+1)/2,
@@ -262,10 +276,23 @@ nwbass_depricated <- function(X, y,
         #  cntw <- cntw + 1
         #  w <- w_cand
         #}
-        w_tform <- rmpon(1,
-                         N+M+w_prior$p-1,
-                         0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
-                         bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
+
+        if(0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau) > 5000){
+          #browser()
+        }
+        #w_tform <- rmpon_sun(1,
+        #                 N+M+w_prior$p-1,
+        #                 0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
+        #                 bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
+        deleteme <<- list(w=w_prior, N=N, M=M, r=r, v=v, pen=pen, tau=tau, bet=bet, gam=gam)
+        w_tform <- rMHN(1,
+             N+M-2*w_prior$p+1,
+             0.5*(w_prior$b + + sum(r^2/v)/scale + pen/tau),
+             bet*sum(r)/scale)
+        #w_tform <- rmpon(1,
+        #                 N+M-2*w_prior$p+1,
+        #                 0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
+        #                 bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
         w <- w_tform^-2
       }
     }else{
@@ -288,11 +315,18 @@ nwbass_depricated <- function(X, y,
       v <- rgbp.vec(as.numeric(v), v_prior, w, scale, as.numeric(r), bet)
     }
 
+    #z    <- y - bet*v*sqrt(w) - sqrt(w)*bet/gam # This is the main difference for nwbass2
     z    <- y - bet*v*sqrt(w)
     Vinv <- Matrix::Diagonal(x=1/v)
     U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
     U2   <- t(z/v)%*%B%*%U
-    v_prior$a <- gam^2       # THIS SEEMS LIKE A MAJOR PROBLEM. WHY DID I DO THIS AND WHY DIDNT I DOCUMENT IT ))))))::::
+    #bias <- sqrt(w)*bet*mu_v
+    #s2   <- scale*w*mu_v + w*bet^2*s2_v
+    v_prior$a <- gam^2
+    mu_v <- mu_gig(v_prior$p, v_prior$a, v_prior$b)
+    s2_v <- var_gig(v_prior$p, v_prior$a, v_prior$b)
+    bias <- sqrt(w) * bet * mu_v
+    s2   <- scale*w*mu_v + w*bet^2*s2_v
 
     if(k >= nburn & ((k-nburn) %% thin) == 0){
       ss[kk]     <- mean((y-yhat)^2)
@@ -305,219 +339,76 @@ nwbass_depricated <- function(X, y,
       v_mc[kk,]  <- v
       basis_mc[[kk]] <- basis_index
       a_mc[[kk]] <- a
+      bias_mc[kk] <- bias
+      s2_mc[kk] <- s2
       kk <- kk + 1
     }
 
-    if(verbose){
-      if((k%%(nmcmc/10)) == 0){
-        cat("***")
-        #browser()
-      }
+    if(verbose & k%%1000 == 0){
+      pr<-c('MCMC iteration',k,myTimestamp(),'nbasis:',M)
+      cat(pr,'\n')
     }
 
   } #END MCMC ITERATIONS
-  if(verbose) cat("\n")
+
   #browser()
-  obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lam=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
-              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc)
-  class(obj) <- "gbass"
+  obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lamb=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
+              cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y, scale=scale, s2=s2_mc, bias=bias_mc)
+  class(obj) <- c("nwbass", "gbass")
   return(obj)
 } #END FUNCTION
 
 
-
-#' The NW Triangle Plot
+#' Generalized Bayesian MARS with a NW Likelihood
 #'
-#' A function for plotting the NW Triangle for an object created with nwbass()
+#' Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
 #'
-#' @param obj an object returned by nwbass function
-#' @param add FALSE. Should data be added to an existing plot?
-#' @param details FALSE. Should details about other distributions be included (must have ADD=FALSE)
-#' @return Creates the NW Triangle plot
-#' @details Plots the posterior draws of the steepness and asymmetry parameter, defined as (1+gamma)^(-1/2) and beta/sqrt(gamma^2+beta^2)*steepness respectively.
-#' These parameters are location and scale invariant. Normal (0,0) and Cauchy (0,1) occur as limiting cases.
+#'
+#' @param X an Nxp matrix of predictor variables.
+#' @param y an Nx1 matrix (or vector) of response values.
+#' @param w_prior a named list specifying the prior for the global variance component. See details.
+#' @param v_prior a named list specifying the (shared) prior for the local variance components. See details.
+#' @param maxInt integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.
+#' @param maxBasis maximum number of basis functions. This should probably only be altered if you run out of memory.
+#' @param npart of non-zero points in a basis function. If the response is functional, this refers only to the portion of the basis function coming from the non-functional predictors. Defaults to 20 or 0.1 times the number of observations, whichever is smaller.
+#' @param nmcmc number of mcmc iterations
+#' @param nburn number of burn-in samples
+#' @param thin thinning for mcmc
+#' @param moveProbs a vector defining the probabilities for (i) birth (ii) death and (iii) mutation. Default is rep(1/3,3).
+#' @param a_tau prior for tau
+#' @param b_tau prior for tyau
+#' @param a_lambda prior for lambda
+#' @param b_lambda prior for lambda
+#' @param m_beta prior for beta
+#' @param s_beta prior for beta
+#' @param lag_beta number of steps for which beta is fixed to m_beta (usually zero)
+#' @param m_gamma prior for gamma
+#' @param s_gamma prior for gamma
+#' @param scale fixed variance parameter. default is one.
+#' @param Iw0 vector of nominal weights for degree of interaction, used in generating candidate basis functions. Should have length equal to Jmax and have positive entries.
+#' @param Zw0 vector of nominal weights for variable selection, used in generating candidate basis functions. Should have length equal to ncol(X) and have positive entries.
+#' @param verbose Logical. Should gbass print completion status? Default TRUE
+#' @details Currently, the prior for w and v_i must belong to the class of Generalized inverse Gaussian (GIG) or Generalized Beta Prime (GBP) priors. The list should have the following named fields
+#' \enumerate{
+#'    \item type. either "GIG" or "GBP".
+#'    \item p, a, b. Hyperparameters for the prior. p,a,b > 0 for GBP. See ?rgig2 for details on GIG parameters.
+#'    \item prop_sigma. The proposal standard deviation for Metropolis-Hastings. Only needed if type="GBP" or if type="GIG" and beta is not fixed at zero.
+#'    \item lb. An optional lower bound which truncates the prior for w. This argument is ignored when specified for v_prior.
+#' }
+#' The build_prior function can be used to construct these priors.
+#'
+#' @return The returned value is a named list with components for each of the MCMC parameters. The acceptance rates for each move type is returned. If applicable, we also return acceptance rates for w and the v_i.
+#' @note Some comments about current deficiencies in the code.
+#' \enumerate{
+#'    \item basis function parameters are stored as lists.
+#'    \item burn-in and thinning is not implemented intelligently.
+#'    \item continuous uniform prior for knot locations.
+#'    \item assumes a ridge prior for basis coefficients.
+#' }
 #' @import Matrix
-#' @export
 #' @examples
 #' #not yet
 #'
-nw_triangle <- function(obj, add=FALSE, details=FALSE, ...){
-  steepness <- (obj$gamma+1)^(-1/2)
-  asymmetry <- obj$beta/sqrt(obj$beta^2+obj$gamma^2)*(steepness)
-  if(!add){
-    plot(NULL, xlim=c(-1,1), ylim=c(0, 1), xlab='Asymmetry', ylab='Steepness')
-    segments(x0=c(-1, -1, 0), x1=c(1, 0, 1), y0=c(1,1,0), y1=c(1, 0, 1), lwd=3, col=adjustcolor('gray', alpha.f=0.5))
-    #points(c(0,0), c(0, 1), cex=1.5)
-    if(details){
-      points(rep(0, 5), c(1, .9, .5, .1428, 0), pch= 0:4, bg="black")
-      legend('bottomright', c("Cauchy", "t(5)", "t(10)", "t(100)", "Gaussian", "Lnorm(0.5)", "Lnorm(0.1)", "Lnorm(0.01)"),
-             pch=c(0:4,15:17), col=1, bty='n', cex=1.2)
-      cnt <- 0
-      for(a in c(.5, .1, .01)){
-        k = exp(4*a) + 2*exp(3*a) + 3*exp(2*a) - 6
-        s = (exp(a)+2)*sqrt(exp(a)-1)
-        g = 9/(3*k-4*s^2)
-        p = s*sqrt(g)/3
-        xi = (1+abs(g))^(-1/2)
-        chi = p*xi
-        points(chi, xi, pch=15+cnt)
-        cnt <- cnt + 1
-      }
-    }
-  }
-  points(asymmetry, steepness, ...)
-}
-
-
-#' Function to select prior for gamma
-#'
-#' A  function to select hyperparameters for gamma in terms of steepness parameter xi = (1+gamma)^(-1/2)
-#'
-#' @param q1 default 0.1
-#' @param q2 default 0.9
-#' @param p1 default 0.5
-#' @param p2 default 0.05
-#' @param par0 optional starting values
-#' @param par0 optional  ridge penalty for optimization
-#' @return hyperparameter values for prior of gamma
-#' @details Plots the posterior draws of the steepness and asymmetry parameter, defined as (1+gamma)^(-1/2) and beta/sqrt(gamma^2+beta^2)*steepness respectively.
-#' These parameters are location and scale invariant. Normal (0,0) and Cauchy (0,1) occur as limiting cases.
-#' @import Matrix
-#' @export
-#' @examples
-#' #not yet
-nw_gamma_prior <- function(q1=0.1, q2=0.9, p1=0.5, p2=0.05, par0=NULL, lambda=0){
-  logit <- function(z) log(z/(1-z))
-  fff <- function(xx, q1,q2,p1,p2,lambda){
-    lhs1 <- 1 + pnorm((1-q1^-2-xx[1])/xx[2]) - pnorm((q1^-2-1-xx[1])/xx[2])
-    lhs2 <- pnorm((q2^-2-1-xx[1])/xx[2]) - pnorm((1-q2^-2-xx[1])/xx[2])
-    (logit(lhs1)-logit(p1))^2 + (logit(lhs2)-logit(p2))^2 + lambda*sum(xx^2)
-  }
-  if(is.null(par0)) par0 <- c(100, 100)
-  opt <- optim(par0, fff, method="Nelder-Mead", q1=q1, q2=q2, p1=p1, p2=p2, lambda=lambda, control=list(maxit=c(50000)))
-  par <- opt$par
-  #return(opt)
-  #if(opt$value - lambda*sum(par^2) > 0.5 ) warning("Attained a minimum of ", opt$value - lambda*sum(par^2), ", optimization may not have converged")
-  names(par) <- c("m_gamma", "s_gamma")
-  return(par)
-}
-
-
-#' Method of Moments for Normal-Wald
-#'
-#' A function to estimate parameters of the Normal-Wald distribution
-#'
-#' @param data the data vector
-#' @param stats a vector of length 4 containing mean, variance, skew, kurtosis. Ignored when data is provided.
-#' @param mu location parameter, if fixed
-#' @param alpha tail heaviness parameter, if fixed
-#' @param beta skewness parameter, if fixed
-#' @param delta scale parameter, if fixed
-#' @param triangle logical. When TRUE, only the steepness and asymmetry values are returned.
-#' @param ... additional parameters passed to optim.
-#' @return estimated parameters
-#' @details Method of moments estimators for NW parameters. The stats vector can contain NA values when parameters are fixed. If the mean is to be estimated, then \code{stats[1]} must be provided.
-#' @import Matrix
-#' @export
-#' @examples
-#' n <- 500
-#' y <- rgamma(n, 3, 1.5) + rlnorm(n, 1, 0.5)
-#' skew <- mean(((y-mean(y))/sd(y))^3) # Sample skewness
-#' kurt <- mean(((y-mean(y))/sd(y))^4) # Sample kurtosis
-#'
-#' nw_est_mom(stats=c(NA, NA, skew, kurt), mu=0, delta=1, triangle=TRUE)
-#' nw_est_mom(stats=c(NA, var(y), skew, kurt), mu=0, triangle=TRUE)
-nw_est_mom <- function(data=NULL, stats=NULL,
-                       mu=NA, delta=NA, beta=NA, alpha=NA,
-                       triangle=FALSE, ...){
-  if(!is.null(data)){
-    zdata <- (data-mean(data))/sd(data)
-    stats <- c(mean(data), var(data), mean(zdata^3), mean(zdata^4))
-  }
-  # Figure out which moments to use
-  moments_requested <- which(c(is.na(mu), is.na(delta), is.na(beta), is.na(alpha)))
-  moments_provided  <- which(!is.na(stats))
-
-  if(length(moments_requested) > length(moments_provided)){
-    stop("Need more moments to estimate desired parameters")
-  }
-  if(moments_requested[1] == 1 & moments_provided[1] != 1){
-    stop("Cannot estimate mu without sample mean")
-  }
-  f2opt <- function(par, moments, mu=NA, delta=NA, beta=NA, alpha=NA){
-    cnt <- 1
-    if(is.na(mu)){
-      mu <- par[cnt]
-      cnt <- cnt + 1
-    }
-    if(is.na(delta)){
-      delta <- exp(par[cnt])
-      cnt <- cnt + 1
-    }
-    if(is.na(beta)){
-      beta <- par[cnt]
-      cnt <- cnt + 1
-    }
-    if(is.na(alpha)){
-      alpha <- par[cnt]
-    }
-    if(alpha^2 < beta^2) return(1e7)
-    gamma <- sqrt(alpha^2 - beta^2)
-
-    m1 <- mu + delta*beta/gamma
-    m2 <- delta*alpha^2/gamma^3
-    m3 <- 3*beta/(alpha*sqrt(delta*gamma))
-    m4 <- 3 + 3*(1 + 4*beta^2)/(alpha^2*delta*gamma)
-
-    d1 <- d2 <- d3 <- d4 <- 0
-    if(!is.na(moments[1])){
-      d1 <- (m1 - moments[1])^2
-    }
-    if(!is.na(moments[2])){
-      d2 <- (m2 - moments[2])^2
-    }
-    if(!is.na(moments[3])){
-      d3 <- (m3 - moments[3])^2
-    }
-    if(!is.na(moments[4])){
-      d4 <- (m4 - moments[4])^2
-    }
-    return(d1 + d2 + d3 + d4)
-  }
-
-  par0 <- c(0, 0, 0, 1)[moments_requested]
-  fit <- optim(par0, fn=f2opt, moments= stats, mu=mu, delta=delta, beta=beta, alpha=alpha, ...)
-  if(fit$convergence != 0) warning("Optim may not have converged.")
-
-  cnt <- 1
-  if(1 %in% moments_requested){
-    mu <- fit$par[cnt]
-    cnt <- cnt + 1
-  }
-  if(2 %in% moments_requested){
-    delta <- exp(fit$par[cnt])
-    cnt <- cnt + 1
-  }
-  if(3 %in% moments_requested){
-    beta <- fit$par[cnt]
-    cnt <- cnt + 1
-  }
-  if(4 %in% moments_requested){
-    alpha <- abs(fit$par[cnt])
-    cnt <- cnt + 1
-  }
-
-  if(triangle){
-    gamma <-  sqrt(alpha^2 - beta^2)
-    steep <- 1/sqrt(1 + abs(gamma))
-    asymm <- beta*steep/alpha
-    res <- c(asymm, steep)
-    names(res) <- c("asymmetry", "steepness")
-  }else{
-    res <- c(mu, delta, beta, alpha)
-    names(res) <- c("mu", "delta", "beta", "alpha")
-  }
-  return(res)
-}
-
+#'@export
+nwbass2 <- nwbass
 
