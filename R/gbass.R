@@ -71,7 +71,7 @@ gbass <- function(X, y,
   keep_idx <- seq.int(from = nburn + 1, to = nmcmc, by = thin)
   nkeep <- length(keep_idx)
   keep_iter <- rep(FALSE, nmcmc)
-  keep_iter[keep_indx] <- TRUE
+  keep_iter[keep_idx] <- TRUE
   if(is.null(npart)) npart <- min(20, 0.1*N)
   if(is.null(b_tau)) b_tau <- N/2
   if(is.null(w_prior$lb)) w_prior$lb <- 1/N
