@@ -258,55 +258,52 @@ nwbass <- function(X, y,
                  sqrt(scale*s_beta^2/(s_beta^2*sum(v)+scale)))
     gam <- rnorm(1, (s_gamma^2*N+m_gamma)/(s_gamma^2*sum(v)+1),
                  s_gamma/sqrt(s_gamma^2*sum(v)+1))
-    if(w_prior$type == "GIG"){
-      if(abs(bet) < 1e-9){
-        w_cand <- rgig2(p=w_prior$p - (N+M+1)/2,
-                        a=w_prior$a,
-                        b=w_prior$b + sum(r^2/v)/scale + pen/tau)
-        w <- ifelse(w_cand < w_prior$lb, w, w_cand)
-      }else{
-        #Metropolis Hastings (depreciated)
-        #w_cand <- exp(log(w) + rnorm(1, 0, w_prior$prop_sigma))
-        #log_alpha_w <- (w_prior$p - (N+M+1)/2)*(log(w_cand)-log(w)) -
-        #  0.5*(w_prior$a*(w_cand-w) +
-        #         (w_prior$b + sum(r^2/v)/scale + pen/tau)*(1/w_cand - 1/w) -
-        #         2*bet/scale*sum(r)*(1/sqrt(w_cand)-1/sqrt(w))) +
-        #  log(w_cand > w_prior$lb)
-        #if(log_alpha_w > log(runif(1))){
-        #  cntw <- cntw + 1
-        #  w <- w_cand
-        #}
 
-        if(0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau) > 5000){
-          #browser()
+    # Sample w
+    rss_over_v <- sum(r^2 / v) / scale
+    sum_r <- sum(r)
+    quad_term <- w_prior$b + rss_over_v + pen / tau
+    shape_shift <- (N + M + 1) / 2
+
+    if (w_prior$type == "GIG") {
+      if (abs(bet) < 1e-9) {
+        w_cand <- rgig2(
+          p = w_prior$p - shape_shift,
+          a = w_prior$a,
+          b = quad_term
+        )
+
+        if (w_cand >= w_prior$lb) {
+          w <- w_cand
         }
-        #w_tform <- rmpon_sun(1,
-        #                 N+M+w_prior$p-1,
-        #                 0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
-        #                 bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
-        deleteme <<- list(w=w_prior, N=N, M=M, r=r, v=v, pen=pen, tau=tau, bet=bet, gam=gam)
-        w_tform <- rMHN(1,
-             N+M-2*w_prior$p+1,
-             0.5*(w_prior$b + + sum(r^2/v)/scale + pen/tau),
-             bet*sum(r)/scale)
-        #w_tform <- rmpon(1,
-        #                 N+M-2*w_prior$p+1,
-        #                 0.5*(w_prior$b + sum(r^2/v)/scale + pen/tau),
-        #                 bet*sum(r)/scale/(sum(r^2/v)/scale + pen/tau))
-        w <- w_tform^-2
+      } else {
+        w_tform <- rMHN(
+          n = 1,
+          alpha = N + M - 2 * w_prior$p + 1,
+          beta = 0.5 * quad_term,
+          gamma = bet * sum_r / scale
+        )
+
+        w <- w_tform^(-2)
       }
-    }else{
+    } else {
       w_cand <- exp(log(w) + rnorm(1, 0, w_prior$prop_sigma))
-      log_alpha_w <- (w_prior$p*w_prior$a - (N+M+1)/2)*(log(w_cand)-log(w)) -
-        (sum(r^2/v)/(2*scale) + pen/(2*tau))*(1/w_cand - 1/w) -
-        (w_prior$a + w_prior$b)*(log(1+w_cand^w_prior$p)-log(1+w^w_prior$p)) +
-        bet/scale*sum(r)*(1/sqrt(w_cand) - 1/sqrt(w)) +
+
+      log_alpha_w <-
+        (w_prior$p * w_prior$a - shape_shift) * (log(w_cand) - log(w)) -
+        0.5 * (rss_over_v + pen / tau) * (1 / w_cand - 1 / w) -
+        (w_prior$a + w_prior$b) *
+        (log(1 + w_cand^w_prior$p) - log(1 + w^w_prior$p)) +
+        (bet / scale) * sum_r * (1 / sqrt(w_cand) - 1 / sqrt(w)) +
         log(w_cand > w_prior$lb)
-      if(log_alpha_w > log(runif(1))){
+
+      if (log_alpha_w > log(runif(1))) {
         cntw <- cntw + 1
         w <- w_cand
       }
     }
+
+    # Sampe vs
     if(v_prior$type == "GIG"){
       v <- rgig2.vec(p=v_prior$p-1/2,
                      a=v_prior$a+bet^2/scale,

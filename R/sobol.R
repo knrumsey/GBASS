@@ -5,10 +5,6 @@
 # github.com/lanl/BASS
 # Full copyright in the README.md in the repository
 #######################################################
-myTimestamp<-function(){
-  x<-Sys.time()
-  paste('#--',format(x,"%b %d %X"),'--#')
-}
 scale_range<-function(x,r=NULL){ # x is a vector
   if(is.null(r))
     r<-range(x)

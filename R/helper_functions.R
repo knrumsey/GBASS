@@ -60,91 +60,104 @@ var_gig <- function(p, a, b){
   return(sig2)
 }
 
-#' Convert GBASS to BASS
+#' Convert GBASS object to BASS-like object
 #'
-#' This function converts an object of class `gbass` to an object of class `bass`. This is convenient for taking advantage of
-#' the sobol decomposition functions available in the BASS package.
+#' Converts an object of class \code{gbass} to an object with class \code{bass},
+#' so that downstream BASS utilities such as Sobol decomposition can be used.
 #'
-#' @param gm an object of class gbass
+#' @param gm An object of class \code{gbass}.
+#'
+#' @return An object with class \code{c("bass", "gbass")}.
 #' @export
-#' @examples
-#' #The following are equivalent
-#' n <- 100 #Number of observations
-#' p <- 4   #Number of variables (beyond p = 2, variables are inert)
-#' X <- matrix(runif(n*p), nrow=n)
-#' y <- apply(X, 1, ff1)
-#' gm <- gbass(X, y, nmcmc=1000, nburn=901)
-#' bm <- gm2bm(gm)
-#' sob <- sobol(bm)
-#' plot(sob)
-#'
-gm2bm<-function(gm){
-  out<-list()
-  out$degree<-1
-
-  nmcmc<-length(gm$a)
-  maxb<-max(gm$M)
-  beta<-matrix(nrow=nmcmc,ncol=maxb+1)
-  for(i in 1:nmcmc)
-    beta[i,1:length(gm$a[[i]])]<-gm$a[[i]]
-
-  out$beta<-beta
-  out$nbasis<-gm$M
-  out$p<-ncol(gm$X)
-  gm$lookup[[1]]
-
-  model.lookup<-1
-  for(i in 2:nmcmc){
-    if(gm$M[i]==gm$M[i-1]){
-      if(all(gm$basis[[i]] == gm$basis[[i-1]])){
-        model.lookup[i]<-model.lookup[i-1]
-      } else{
-        model.lookup[i]<-model.lookup[i-1]+1
-      }
-    } else{
-      model.lookup[i]<-model.lookup[i-1]+1
-    }
+gbass2bass <- function(gm) {
+  if (!inherits(gm, "gbass")) {
+    stop("gm must be an object of class 'gbass'")
   }
-  out$model.lookup<-model.lookup
-  out$n.models<-max(model.lookup)
-  out$des<-T
-  out$func<-F
-  out$cat<-F
-  max.int<-max(unlist(lapply(gm$lookup, function(zz) length(zz$s))))
-  n.int.des<-matrix(nrow=out$n.models,ncol=maxb)
-  signs.des<-vars.des<-knots.des<-array(dim = c(out$n.models,maxb,max.int))
-  for(i in 1:out$n.models){
-    ind<-which(model.lookup==i)
-    for(j in 1:gm$M[ind[1]]){
-      n.int.des[i,j]<-gm$lookup[[gm$basis[ind[1]][[1]][j]]]$J
-      signs.des[i,j,1:n.int.des[i,j]]<-gm$lookup[[gm$basis[ind[1]][[1]][j]]]$s
-      vars.des[i,j,1:n.int.des[i,j]]<-gm$lookup[[gm$basis[ind[1]][[1]][j]]]$u
-      knots.des[i,j,1:n.int.des[i,j]]<-gm$lookup[[gm$basis[ind[1]][[1]][j]]]$t
+
+  needed <- c("a", "M", "X", "basis", "lookup")
+  missing_fields <- needed[!needed %in% names(gm)]
+  if (length(missing_fields) > 0) {
+    stop("gbass object is missing required fields: ",
+         paste(missing_fields, collapse = ", "))
+  }
+
+  out <- list()
+  out$degree <- 1
+
+  nmcmc <- length(gm$a)
+  maxb <- max(gm$M)
+
+  beta <- matrix(NA_real_, nrow = nmcmc, ncol = maxb + 1)
+  for (i in seq_len(nmcmc)) {
+    beta[i, seq_along(gm$a[[i]])] <- gm$a[[i]]
+  }
+
+  out$beta <- beta
+  out$nbasis <- gm$M
+  out$p <- ncol(gm$X)
+
+  model.lookup <- integer(nmcmc)
+  model.lookup[1] <- 1L
+  for (i in 2:nmcmc) {
+    same_model <- gm$M[i] == gm$M[i - 1] &&
+      identical(gm$basis[[i]], gm$basis[[i - 1]])
+
+    model.lookup[i] <- if (same_model) model.lookup[i - 1] else model.lookup[i - 1] + 1L
+  }
+
+  out$model.lookup <- model.lookup
+  out$n.models <- max(model.lookup)
+
+  out$des <- TRUE
+  out$func <- FALSE
+  out$cat <- FALSE
+
+  max.int <- max(vapply(gm$lookup, function(zz) length(zz$s), integer(1)))
+  n.int.des <- matrix(0, nrow = out$n.models, ncol = maxb)
+  signs.des <- vars.des <- knots.des <- array(NA_real_, dim = c(out$n.models, maxb, max.int))
+
+  for (i in seq_len(out$n.models)) {
+    ind <- which(model.lookup == i)
+    draw_idx <- ind[1]
+
+    if (gm$M[draw_idx] > 0) {
+      for (j in seq_len(gm$M[draw_idx])) {
+        basis_id <- gm$basis[[draw_idx]][j]
+        basis_obj <- gm$lookup[[basis_id]]
+
+        n.int.des[i, j] <- basis_obj$J
+        signs.des[i, j, seq_len(basis_obj$J)] <- basis_obj$s
+        vars.des[i, j, seq_len(basis_obj$J)]  <- basis_obj$u
+        knots.des[i, j, seq_len(basis_obj$J)] <- basis_obj$t
+      }
     }
   }
 
   out$xx.des <- gm$X
-  out$n.int.des<-n.int.des
-  out$signs.des<-signs.des
-  out$knots.des<-knots.des
-  out$vars.des<-vars.des
-  out$cx<-rep('numeric',out$p)
-  out$range.des<-rbind(rep(0,out$p),rep(1,out$p))
-  out$nburn<-0
-  out$thin<-1
-  out$nmcmc<-nmcmc
-  out$pdes=out$p
-  out$pcat<-0
-  out$pfunc<-0
-  out$maxInt.des<-max.int
-  out$maxInt.cat<-0
-  out$maxInt.func<-0
+  out$n.int.des <- n.int.des
+  out$signs.des <- signs.des
+  out$knots.des <- knots.des
+  out$vars.des <- vars.des
+  out$cx <- rep("numeric", out$p)
+  out$range.des <- rbind(apply(gm$X, 2, min), apply(gm$X, 2, max))
 
-  class(out)<-c('bass', class(gm))
+  out$nburn <- 0
+  out$thin <- 1
+  out$nmcmc <- nmcmc
+  out$pdes <- out$p
+  out$pcat <- 0
+  out$pfunc <- 0
+  out$maxInt.des <- max.int
+  out$maxInt.cat <- 0
+  out$maxInt.func <- 0
 
-  return(out)
+  class(out) <- c("bass", class(gm))
+  out
 }
 
+#' @rdname gbass2bass
+#' @export
+gm2bm <- gbass2bass
 
 dmwnchBass<-function(z.vec,vars){
   z.vec <- z.vec/sum(z.vec)
