@@ -64,12 +64,14 @@ gbass <- function(X, y,
                   verbose=TRUE){
 
   if(is.null(dim(X))) X <- matrix(X, ncol=1)
-  if(max(X) > 1 | min(X) < 0) warning("Found values of X outside of (0, 1).")
   if(nrow(X) != length(y)) stop("nrow(X) and length(y) should match")
   N <- nrow(X)
   p <- ncol(X)
   maxInt <- min(ncol(X), maxInt)
-  nkeep <- length(seq(nburn, nmcmc, by=thin))
+  keep_idx <- seq.int(from = nburn + 1, to = nmcmc, by = thin)
+  nkeep <- length(keep_idx)
+  keep_iter <- rep(FALSE, nmcmc)
+  keep_iter[keep_indx] <- TRUE
   if(is.null(npart)) npart <- min(20, 0.1*N)
   if(is.null(b_tau)) b_tau <- N/2
   if(is.null(w_prior$lb)) w_prior$lb <- 1/N
@@ -321,7 +323,8 @@ gbass <- function(X, y,
       s2   <- scale*w*mu_v + w*bet^2*s2_v
     }
 
-    if(k >= nburn & ((k-nburn) %% thin) == 0){
+
+    if(keep_iter[k]){
       ss[kk]     <- mean((y-yhat)^2)
       M_mc[kk]   <- M
       lam_mc[kk] <- lam
