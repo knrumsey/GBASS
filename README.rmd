@@ -19,7 +19,7 @@ library(knitr)
 
 [![License: GPL
 v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![](https://img.shields.io/badge/devel%20version-1.0.1-purple.svg)](https://github.com/knrumsey-lanl/GBASS)
+[![](https://img.shields.io/badge/devel%20version-2.0.0-purple.svg)](https://github.com/knrumsey-lanl/GBASS)
 
 
 
@@ -115,7 +115,6 @@ legend(
 ```
 
 In this example, `nwbass()` is able to capture the asymmetric predictive distribution much better than a Gaussian `bass()` model.
-
 
 
 ### References
