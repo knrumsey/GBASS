@@ -2,16 +2,12 @@
 % Please edit documentation in R/gbass.R
 \name{plot.gbass}
 \alias{plot.gbass}
-\title{Plot function for class "gbass"}
+\title{Plot method for class "gbass"}
 \usage{
 \method{plot}{gbass}(x, ...)
 }
 \arguments{
-\item{object}{an object of class "gbass" created by the gbass, tbass or hbass functions}
-
-\item{newdata}{a matrix of predictor variables with ncol(newdata) == ncol(X)}
-
-\item{mcmc.use}{a vector subsetting which posterior samples to use for prediction. Default is to retain all samples.}
+\item{x}{an object of class "gbass" created by \code{gbass}, \code{nwbass}, or a wrapper.}
 }
 \description{
 This function plots an object of class "gbass"

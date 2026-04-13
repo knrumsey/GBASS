@@ -2,7 +2,7 @@
 % Please edit documentation in R/nw_tools.R
 \name{nw_est_mom}
 \alias{nw_est_mom}
-\title{Method of Moments for Normal-Wald}
+\title{Method-of-moments estimation for the Normal-Wald distribution}
 \usage{
 nw_est_mom(
   data = NULL,
@@ -16,37 +16,55 @@ nw_est_mom(
 )
 }
 \arguments{
-\item{data}{the data vector}
+\item{data}{Optional data vector. If supplied, empirical moments are computed
+from \code{data} and \code{stats} is ignored.}
 
-\item{stats}{a vector of length 4 containing mean, variance, skew, kurtosis. Ignored when data is provided.}
+\item{stats}{Optional numeric vector of length 4 containing mean, variance,
+skewness, and kurtosis. Entries may be \code{NA} when the corresponding
+parameter is fixed.}
 
-\item{mu}{location parameter, if fixed}
+\item{mu}{Location parameter, if fixed.}
 
-\item{delta}{scale parameter, if fixed}
+\item{delta}{Scale parameter, if fixed.}
 
-\item{beta}{skewness parameter, if fixed}
+\item{beta}{Skewness parameter, if fixed.}
 
-\item{alpha}{tail heaviness parameter, if fixed}
+\item{alpha}{Tail parameter, if fixed.}
 
-\item{triangle}{logical. When TRUE, only the steepness and asymmetry values are returned.}
+\item{triangle}{Logical; if \code{TRUE}, return only the asymmetry and
+steepness summary parameters.}
 
-\item{...}{additional parameters passed to optim.}
+\item{...}{Additional arguments passed to \code{\link[stats]{optim}}.}
 }
 \value{
-estimated parameters
+If \code{triangle = FALSE}, a named numeric vector with entries
+\code{mu}, \code{delta}, \code{beta}, and \code{alpha}.
+If \code{triangle = TRUE}, a named numeric vector with entries
+\code{asymmetry} and \code{steepness}.
 }
 \description{
-A function to estimate parameters of the Normal-Wald distribution
+Estimates Normal-Wald parameters from sample moments or from a supplied
+vector of moments.
 }
 \details{
-Method of moments estimators for NW parameters. The stats vector can contain NA values when parameters are fixed. If the mean is to be estimated, then \code{stats[1]} must be provided.
+This function computes method-of-moments estimates for the Normal-Wald
+distribution. If \code{data} is supplied, sample mean, variance, skewness,
+and kurtosis are computed automatically. Otherwise, the user may provide
+these moments directly through \code{stats}.
+
+If some parameters are fixed, only the remaining parameters are estimated.
+When \code{triangle = TRUE}, the returned values are the transformed summary
+quantities
+\eqn{\text{steepness} = (1 + |\gamma|)^{-1/2}} and a corresponding
+asymmetry measure.
 }
 \examples{
 n <- 500
 y <- rgamma(n, 3, 1.5) + rlnorm(n, 1, 0.5)
-skew <- mean(((y-mean(y))/sd(y))^3) # Sample skewness
-kurt <- mean(((y-mean(y))/sd(y))^4) # Sample kurtosis
+z <- (y - mean(y)) / sd(y)
+skew <- mean(z^3)
+kurt <- mean(z^4)
 
-nw_est_mom(stats=c(NA, NA, skew, kurt), mu=0, delta=1, triangle=TRUE)
-nw_est_mom(stats=c(NA, var(y), skew, kurt), mu=0, triangle=TRUE)
+nw_est_mom(stats = c(NA, NA, skew, kurt), mu = 0, delta = 1, triangle = TRUE)
+nw_est_mom(stats = c(NA, var(y), skew, kurt), mu = 0, triangle = TRUE)
 }

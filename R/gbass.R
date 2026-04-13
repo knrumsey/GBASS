@@ -74,6 +74,8 @@
 #' @export
 #'
 #' @examples
+#' ff1 <- function(x) 10.391*((x[1]-0.4)*(x[2]-0.6) + 0.36)
+#'
 #' n <- 100
 #' p <- 4
 #' X <- matrix(runif(n * p), nrow = n)
@@ -816,13 +818,11 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
   return(res)
 }
 
-#' Plot function for class "gbass"
+#' Plot method for class "gbass"
 #'
 #' This function plots an object of class "gbass"
 #'
-#' @param object an object of class "gbass" created by the gbass, tbass or hbass functions
-#' @param newdata a matrix of predictor variables with ncol(newdata) == ncol(X)
-#' @param mcmc.use a vector subsetting which posterior samples to use for prediction. Default is to retain all samples.
+#' @param x an object of class "gbass" created by \code{gbass}, \code{nwbass}, or a wrapper.
 #' @details Returns a matrix of posterior predictions.
 #'
 #' @export

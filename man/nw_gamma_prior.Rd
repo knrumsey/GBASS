@@ -2,7 +2,7 @@
 % Please edit documentation in R/nw_tools.R
 \name{nw_gamma_prior}
 \alias{nw_gamma_prior}
-\title{Function to select prior for gamma}
+\title{Calibrate a prior for the Normal-Wald gamma parameter}
 \usage{
 nw_gamma_prior(
   q1 = 0.1,
@@ -14,26 +14,39 @@ nw_gamma_prior(
 )
 }
 \arguments{
-\item{q1}{default 0.1}
+\item{q1}{Lower reference value for the steepness parameter. Default is
+\code{0.1}.}
 
-\item{q2}{default 0.9}
+\item{q2}{Upper reference value for the steepness parameter. Default is
+\code{0.9}.}
 
-\item{p1}{default 0.5}
+\item{p1}{Target probability associated with \code{q1}. Default is
+\code{0.5}.}
 
-\item{p2}{default 0.05}
+\item{p2}{Target probability associated with \code{q2}. Default is
+\code{0.05}.}
 
-\item{par0}{optional  ridge penalty for optimization}
+\item{par0}{Optional starting values for the numerical optimization.}
+
+\item{lambda}{Optional ridge penalty used in the optimization. Default is
+\code{0}.}
 }
 \value{
-hyperparameter values for prior of gamma
+A named numeric vector with entries \code{m_gamma} and
+\code{s_gamma}.
 }
 \description{
-A  function to select hyperparameters for gamma in terms of steepness parameter xi = (1+gamma)^(-1/2)
+Selects prior hyperparameters for \code{gamma} in the Normal-Wald model using
+probability statements about the steepness parameter
+\eqn{\xi = (1 + \gamma)^{-1/2}}.
 }
 \details{
-Plots the posterior draws of the steepness and asymmetry parameter, defined as (1+gamma)^(-1/2) and beta/sqrt(gamma^2+beta^2)*steepness respectively.
-These parameters are location and scale invariant. Normal (0,0) and Cauchy (0,1) occur as limiting cases.
+This function chooses hyperparameters for a prior on \code{gamma} by solving
+a simple calibration problem based on the steepness parameter
+\eqn{(1 + \gamma)^{-1/2}}. The optimization is carried out with
+\code{\link[stats]{optim}} using the Nelder-Mead method.
 }
 \examples{
-#not yet
+nw_gamma_prior()
+nw_gamma_prior(q1 = 0.2, q2 = 0.8, p1 = 0.4, p2 = 0.1)
 }
