@@ -11,6 +11,7 @@ v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/li
 
 <img src="inst/logos/GBASS.png" alt="This logo was designed by Imagine AI Art Studio" width="50%" />
 <p class="caption">
+
 This logo was designed by Imagine AI Art Studio
 </p>
 
@@ -18,25 +19,51 @@ This logo was designed by Imagine AI Art Studio
 
 ### Description
 
-GBASS (Generalized Bayesian Additive Spline Surfaces) is an R package
-for fitting [BASS](https://github.com/cran/BASS) models with flexible
-likelihoods including the $t$, Horseshoe, Asymmetric Laplace (for
-quantile regression) and Normal-Wald likelihoods. The package provides
-an implementation of the method proposed in [Rumsey et.
-al. (2023)](https://arxiv.org/pdf/2306.01911). To work with the
-`gbass()` function, priors for the global variance factor $w$ and local
-variance factors $v_i$ should be specified as a GIG prior (or a GBP
-prior). Helpful wrappers `tbass()`, `qbass()` and `nwbass()` are also
-provided for some important familiar cases.
+GBASS (Generalized Bayesian Adaptive Smoothing Splines) is an R package
+for fitting [BASS](https://github.com/cran/BASS)-style models with
+flexible likelihoods, including the Student’s $t$, Horseshoe, asymmetric
+Laplace (for quantile regression), and Normal-Wald likelihoods. The
+package provides an implementation of the methods proposed in [Rumsey et
+al. (2023)](https://epubs.siam.org/doi/full/10.1137/23M1577122), while
+retaining a familiar interface for users of `BASS`.
+
+To work directly with `gbass()`, priors for the global variance factor
+$w$ and local variance factors $v_i$ should be specified using either a
+generalized inverse Gaussian (GIG) prior or a generalized beta prime
+(GBP) prior. Helpful wrappers `tbass()`, `qbass()`, `hbass()`, and
+`nwbass()` are also provided for important special cases.
 
 ### Installation
 
 To install the `GBASS` package, type
 
 ``` r
-# install.packages("devtools")
-devtools::install_github("knrumsey/GBASS")
+# install.packages("remotes")
+remotes::install_github("knrumsey/GBASS")
 ```
+
+### Example
+
+The example below compares `nwbass()` to a standard `bass()` model on a
+simple stochastic emulator problem with skewed response behavior.
+
+    #> 
+    #> Attaching package: 'BASS'
+    #> The following object is masked from 'package:GBASS':
+    #> 
+    #>     sobol
+    #> Warning: package 'lhs' was built under R version 4.4.3
+
+<img src="man/figures/README-example-1.png" width="100%" /><img src="man/figures/README-example-2.png" width="100%" />
+
+In this example, `nwbass()` is able to capture the asymmetric predictive
+distribution much better than a Gaussian `bass()` model.
+
+### References
+
+Rumsey, K.N., Francom, D. and Shen, A., 2024. Generalized Bayesian MARS:
+Tools for stochastic computer model emulation. SIAM/ASA Journal on
+Uncertainty Quantification, 12(2), pp.646-666.
 
 # Copyright Notice
 
