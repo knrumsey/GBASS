@@ -4,35 +4,57 @@
 \alias{build_prior}
 \alias{build_GIG}
 \alias{build_GBP}
-\title{Build GIG and GBP priors}
+\title{Construct a prior specification for GBASS}
 \usage{
-build_prior(type, p, a, b, prop_sigma = NULL)
+build_prior(
+  type = c("GIG", "GBP"),
+  p,
+  a,
+  b,
+  lower_bound = NULL,
+  prop_sigma = NULL,
+  adapt = NULL,
+  adapt_delay = NULL,
+  adapt_thin = NULL
+)
 
-build_GIG(p, a, b, prop_sigma = NULL)
+build_GIG(
+  p,
+  a,
+  b,
+  lower_bound = NULL,
+  prop_sigma = NULL,
+  adapt = NULL,
+  adapt_delay = NULL,
+  adapt_thin = NULL
+)
 
-build_GBP(p, a, b, prop_sigma = NULL)
+build_GBP(
+  p,
+  a,
+  b,
+  lower_bound = NULL,
+  prop_sigma = NULL,
+  adapt = NULL,
+  adapt_delay = NULL,
+  adapt_thin = NULL
+)
 }
 \arguments{
-\item{type}{either "GIG" or "GBP"}
+\item{type}{"GIG" or "GBP"}
 
-\item{prop_sigma}{the proposal standard deviation (only used for GBP or when symmetry parameter (beta) is non-zero)}
+\item{p, a, b}{prior hyperparameters}
 
-\item{pars}{a vector (p, a, b) of parameters}
+\item{lower_bound}{optional lower bound}
+
+\item{prop_sigma}{optional proposal sd (log scale)}
+
+\item{adapt}{logical; use adaptive MH?}
+
+\item{adapt_delay}{delay before adapting}
+
+\item{adapt_thin}{thinning for adaptation updates}
 }
 \description{
-Build Prior
-}
-\details{
-This function provides a short cut for specifying GIG or GBP priors. See main help page of gbass() for more details.
-
-Shortcut for specifying priors for the gbass() function. prop_sigma may not be necessary for GIG prior.
-}
-\examples{
-#The following are equivalent
-w_prior <- list(type="GBP", p=1, a=1/2, b=1/2, prop_sigma = 0.2)
-w_prior <- build_prior("GBP", c(1, 1/2, 1/2), 0.2)
-# The following are equivalent
-w_prior <- list(type="GBP", p=1, a=1/2, b=1/2, prop_sigma = 0.2)
-w_prior <- build_prior("GBP", 1, 1/2, 1/2, 0.2)
-w_prior <- build_GBP(1, 1/2, 1/2, 0.2)
+Construct a prior specification for GBASS
 }

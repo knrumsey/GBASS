@@ -2,9 +2,37 @@
 % Please edit documentation in R/nwbass.R
 \name{nwbass}
 \alias{nwbass}
+\alias{nwbass2}
 \title{Generalized Bayesian MARS with a NW Likelihood}
 \usage{
 nwbass(
+  X,
+  y,
+  w_prior = list(type = "GIG", p = -0.1, a = 0, b = 0.1),
+  maxInt = 3,
+  maxBasis = 1000,
+  npart = NULL,
+  nmcmc = 10000,
+  nburn = 9001,
+  thin = 1,
+  moveProbs = rep(1/3, 3),
+  a_tau = 1/2,
+  b_tau = NULL,
+  a_lambda = 1,
+  b_lambda = 1,
+  m_beta = 0,
+  s_beta = 0,
+  lag_beta = 1001,
+  m_gamma = 1,
+  s_gamma = 0,
+  vsig = 0.25,
+  scale = 1,
+  Iw0 = rep(1, maxInt),
+  Zw0 = rep(1, ncol(X)),
+  verbose = TRUE
+)
+
+nwbass2(
   X,
   y,
   w_prior = list(type = "GIG", p = -0.1, a = 0, b = 0.1),

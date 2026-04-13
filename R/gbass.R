@@ -71,14 +71,14 @@ gbass <- function(X, y,
     warning("Trying to fit a model with less than 4 data points may fail.")
   }
   maxInt <- min(ncol(X), maxInt)
-  keep_idx <- seq.int(from = nburn + 1, to = nmcmc, by = thin)
+  keep_idx <- seq.int(from = nburn, to = nmcmc, by = thin)
   nkeep <- length(keep_idx)
   keep_iter <- rep(FALSE, nmcmc)
   keep_iter[keep_idx] <- TRUE
   if(is.null(npart)) npart <- min(20, 0.1*N)
   if(is.null(b_tau)) b_tau <- N/2
-  if(is.null(w_prior$lb)) w_prior$lb <- 1/N
-  if(is.null(v_prior$lb)) v_prior$lb <- 0
+  if(is.null(w_prior$lower_bound)) w_prior$lower_bound <- var(y)/N
+  if(is.null(v_prior$lower_bound)) v_prior$lower_bound <- 0
   if((m_beta != 0 | s_beta != 0) & is.null(w_prior$prop_sigma)){
     warning("Setting w_prior$prop_sigma = scale/var(y)/2. Consider specifying w_prior.")
     w_prior$prop_sigma <- var(y)/scale/2
@@ -105,9 +105,6 @@ gbass <- function(X, y,
   z    <- y - bet*v*sqrt(w)
   B    <- matrix(1, nrow=N)
   Vinv <- Matrix::Diagonal(x=1/v)
-  # 3/14/23 using crossprod for slight speedup
-  #U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
-  #U2   <- t(z/v)%*%B%*%U
   U    <- solve(symchol(crossprod(B, Vinv)%*%B + scale/tau*Diagonal(M+1)))
   U2   <- crossprod(z/v, B)%*%U
   if(v_prior$type == "GIG"){
@@ -118,9 +115,31 @@ gbass <- function(X, y,
   }
 
   cnt1 <- cnt2 <- rep(0, 3)
-  if(w_prior$type == "GBP" || abs(bet) > 1e-9){
-    cntw <- 0
+  if(w_prior$type == "GBP"){
+    if(is.null(w_prior$prop_sigma)){
+      w_prior$prop_sigma <- min(max(var(y) / scale / 2, 1e-3), 5)
+    }
+    if(is.null(w_prior$adapt)){
+      w_prior$adapt <- TRUE
+    }
 
+    # Initialize parameters for adaptive metropolis
+    if(w_prior$adapt){
+      if(is.null(w_prior$adapt_delay)){
+        w_prior$adapt_delay <- floor(nburn / 10)
+      }
+      if(is.null(w_prior$adapt_thin)){
+        w_prior$adapt_thin <- 1
+      }
+
+      w_prior$count <- 1
+      w_prior$sum1 <- log(w)
+      w_prior$welford <- 0
+      adapt_iter <- seq_len(nmcmc) %in% seq(1, nburn, by=w_prior$adapt_thin)
+    }
+
+    # Track acceptance rate
+    cntw <- 0
   }
   if(v_prior$type == "GBP"){
     cntv <- 0
@@ -291,7 +310,7 @@ gbass <- function(X, y,
           b = quad_term
         )
 
-        if (w_cand >= w_prior$lb) {
+        if (w_cand >= w_prior$lower_bound) {
           w <- w_cand
         }
       } else {
@@ -305,6 +324,7 @@ gbass <- function(X, y,
         w <- w_tform^(-2)
       }
     } else {
+      # Adaptive Metropolis Hastings
       w_cand <- exp(log(w) + rnorm(1, 0, w_prior$prop_sigma))
 
       log_alpha_w <-
@@ -313,11 +333,33 @@ gbass <- function(X, y,
         (w_prior$a + w_prior$b) *
         (log(1 + w_cand^w_prior$p) - log(1 + w^w_prior$p)) +
         (bet / scale) * sum_r * (1 / sqrt(w_cand) - 1 / sqrt(w)) +
-        log(w_cand > w_prior$lb)
+        log(w_cand > w_prior$lower_bound)
 
       if (log_alpha_w > log(runif(1))) {
         cntw <- cntw + 1
         w <- w_cand
+      }
+
+      if(w_prior$adapt){
+        if(adapt_iter[k]){
+          theta <- log(w)
+
+          n_adapt  <- w_prior$count + 1
+          S1_adapt <- w_prior$sum1 + theta
+
+          w_prior$count <- n_adapt
+          w_prior$sum1  <- S1_adapt
+
+          xbar_n <- S1_adapt / n_adapt
+          xbar_n_1 <- (S1_adapt - theta) / (n_adapt - 1)
+          w_prior$welford <- w_prior$welford + (theta - xbar_n_1) * (theta - xbar_n)
+
+          if(k > w_prior$adapt_delay){
+            var_adapt <- w_prior$welford / (n_adapt - 1)
+            ps_adapt <- sqrt(2.38^2 * var_adapt + 1e-8)
+            w_prior$prop_sigma <- min(max(ps_adapt, 1e-3), 5)
+          }
+        }
       }
     }
 

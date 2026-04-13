@@ -64,6 +64,7 @@ nwbass <- function(X, y,
   v_prior <- list(type="GIG", p=-1/2, a=1, b=1, prop_sigma=vsig)
   mu_v <- 1
   s2_v <- 1
+  if(is.null(dim(X))) X <- matrix(X, ncol=1)
   if(nrow(X) != length(y)) stop("nrow(X) and length(y) should match")
   maxInt <- min(maxInt, ncol(X))
   if(lag_beta > nburn){
@@ -76,11 +77,14 @@ nwbass <- function(X, y,
   }
   N <- nrow(X)
   p <- ncol(X)
-  nkeep <- length(seq(nburn, nmcmc, by=thin))
+  keep_idx <- seq.int(from = nburn, to = nmcmc, by = thin)
+  nkeep <- length(keep_idx)
+  keep_iter <- rep(FALSE, nmcmc)
+  keep_iter[keep_idx] <- TRUE
   if(is.null(npart)) npart <- min(20, 0.1*N)
   if(is.null(b_tau)) b_tau <- N/2
-  if(is.null(w_prior$lb)) w_prior$lb <- 1/N
-  if(is.null(v_prior$lb)) v_prior$lb <- 0
+  if(is.null(w_prior$lower_bound)) w_prior$lower_bound <- var(y)/N
+  if(is.null(v_prior$lower_bound)) v_prior$lower_bound <- 0
 
   #ALLOCATE STORAGE SPACE
   a_mc <- list()
@@ -109,13 +113,33 @@ nwbass <- function(X, y,
   s2   <- scale*w*mu_v + w*bet^2*s2_v
 
   cnt1 <- cnt2 <- rep(0, 3)
-  if(w_prior$type == "GBP" || abs(bet) > 1e-9){
-    cntw <- 0
+  if(w_prior$type == "GBP"){
+    if(is.null(w_prior$prop_sigma)){
+      w_prior$prop_sigma <- min(max(var(y) / scale / 2, 1e-3), 5)
+    }
+    if(is.null(w_prior$adapt)){
+      w_prior$adapt <- TRUE
+    }
 
+    # Initialize parameters for adaptive metropolis
+    if(w_prior$adapt){
+      if(is.null(w_prior$adapt_delay)){
+        w_prior$adapt_delay <- floor(nburn / 10)
+      }
+      if(is.null(w_prior$adapt_thin)){
+        w_prior$adapt_thin <- 1
+      }
+
+      w_prior$count <- 1
+      w_prior$sum1 <- log(w)
+      w_prior$welford <- 0
+      adapt_iter <- seq_len(nmcmc) %in% seq(1, nburn, by=w_prior$adapt_thin)
+    }
+
+    # Track acceptance rate
+    cntw <- 0
   }
-  if(v_prior$type == "GBP"){
-    cntv <- 0
-  }
+
   tX <- Matrix::t(X)
   if(verbose){
     pr<-c('MCMC iteration',0,myTimestamp(),'nbasis:',M)
@@ -133,8 +157,6 @@ nwbass <- function(X, y,
       u_cand <- sample(p, J_cand, replace=FALSE, prob=Zw0)
       s_cand <- 1 - 2*rbinom(J_cand, 1, 0.5)
       t_cand <- runif(J_cand)
-      #B_new <- rep(1, N)
-      #for(j in 1:J_cand) B_new <- B_new * pmax(0, s_cand[j]*(X[,u_cand[j]]-t_cand[j]))
       B_new <- makeBasis(s_cand,u_cand,t_cand,tX,1)
       if(sum(B_new > 0) >= npart){
         B_cand  <- cbind(B, B_new)
@@ -273,7 +295,7 @@ nwbass <- function(X, y,
           b = quad_term
         )
 
-        if (w_cand >= w_prior$lb) {
+        if (w_cand >= w_prior$lower_bound) {
           w <- w_cand
         }
       } else {
@@ -295,37 +317,54 @@ nwbass <- function(X, y,
         (w_prior$a + w_prior$b) *
         (log(1 + w_cand^w_prior$p) - log(1 + w^w_prior$p)) +
         (bet / scale) * sum_r * (1 / sqrt(w_cand) - 1 / sqrt(w)) +
-        log(w_cand > w_prior$lb)
+        log(w_cand > w_prior$lower_bound)
 
       if (log_alpha_w > log(runif(1))) {
         cntw <- cntw + 1
         w <- w_cand
       }
+
+      if(w_prior$adapt){
+        if(adapt_iter[k]){
+          theta <- log(w)
+
+          n_adapt  <- w_prior$count + 1
+          S1_adapt <- w_prior$sum1 + theta
+
+          w_prior$count <- n_adapt
+          w_prior$sum1  <- S1_adapt
+
+          xbar_n <- S1_adapt / n_adapt
+          xbar_n_1 <- (S1_adapt - theta) / (n_adapt - 1)
+          w_prior$welford <- w_prior$welford + (theta - xbar_n_1) * (theta - xbar_n)
+
+          if(k > w_prior$adapt_delay){
+            var_adapt <- w_prior$welford / (n_adapt - 1)
+            ps_adapt <- sqrt(2.38^2 * var_adapt + 1e-8)
+            w_prior$prop_sigma <- min(max(ps_adapt, 1e-3), 5)
+          }
+        }
+      }
     }
 
-    # Sampe vs
-    if(v_prior$type == "GIG"){
-      v <- rgig2.vec(p=v_prior$p-1/2,
-                     a=v_prior$a+bet^2/scale,
-                     b=as.numeric(v_prior$b + r^2/(w*scale)))
-    }else{
-      v <- rgbp.vec(as.numeric(v), v_prior, w, scale, as.numeric(r), bet)
-    }
+    # Update v
+    v <- rgig2.vec(p=v_prior$p-1/2,
+                   a=v_prior$a+bet^2/scale,
+                   b=as.numeric(v_prior$b + r^2/(w*scale)))
 
-    #z    <- y - bet*v*sqrt(w) - sqrt(w)*bet/gam # This is the main difference for nwbass2
+    # Update other quantities
     z    <- y - bet*v*sqrt(w)
     Vinv <- Matrix::Diagonal(x=1/v)
     U    <- solve(symchol(t(B)%*%Vinv%*%B + scale/tau*Diagonal(M+1)))
     U2   <- t(z/v)%*%B%*%U
-    #bias <- sqrt(w)*bet*mu_v
-    #s2   <- scale*w*mu_v + w*bet^2*s2_v
     v_prior$a <- gam^2
     mu_v <- mu_gig(v_prior$p, v_prior$a, v_prior$b)
     s2_v <- var_gig(v_prior$p, v_prior$a, v_prior$b)
     bias <- sqrt(w) * bet * mu_v
     s2   <- scale*w*mu_v + w*bet^2*s2_v
 
-    if(k >= nburn & ((k-nburn) %% thin) == 0){
+    # Store values for return
+    if(keep_iter[k]){
       ss[kk]     <- mean((y-yhat)^2)
       M_mc[kk]   <- M
       lam_mc[kk] <- lam
@@ -348,7 +387,6 @@ nwbass <- function(X, y,
 
   } #END MCMC ITERATIONS
 
-  #browser()
   obj <- list(nbasis=M_mc, w=w_mc, v=v_mc, tau=tau_mc, lamb=lam_mc, a=a_mc, beta=bet_mc, gamma=gam_mc, basis=basis_mc, lookup=lookup,
               cnt1=cnt1, cnt2=cnt2, ss=ss, v_prior=v_prior, M=M_mc, X=X, y=y, scale=scale, s2=s2_mc, bias=bias_mc)
   class(obj) <- c("nwbass", "gbass")
@@ -356,56 +394,7 @@ nwbass <- function(X, y,
 } #END FUNCTION
 
 
-#' Generalized Bayesian MARS with a NW Likelihood
-#'
-#' Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
-#'
-#'
-#' @param X an Nxp matrix of predictor variables.
-#' @param y an Nx1 matrix (or vector) of response values.
-#' @param w_prior a named list specifying the prior for the global variance component. See details.
-#' @param v_prior a named list specifying the (shared) prior for the local variance components. See details.
-#' @param maxInt integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.
-#' @param maxBasis maximum number of basis functions. This should probably only be altered if you run out of memory.
-#' @param npart of non-zero points in a basis function. If the response is functional, this refers only to the portion of the basis function coming from the non-functional predictors. Defaults to 20 or 0.1 times the number of observations, whichever is smaller.
-#' @param nmcmc number of mcmc iterations
-#' @param nburn number of burn-in samples
-#' @param thin thinning for mcmc
-#' @param moveProbs a vector defining the probabilities for (i) birth (ii) death and (iii) mutation. Default is rep(1/3,3).
-#' @param a_tau prior for tau
-#' @param b_tau prior for tyau
-#' @param a_lambda prior for lambda
-#' @param b_lambda prior for lambda
-#' @param m_beta prior for beta
-#' @param s_beta prior for beta
-#' @param lag_beta number of steps for which beta is fixed to m_beta (usually zero)
-#' @param m_gamma prior for gamma
-#' @param s_gamma prior for gamma
-#' @param scale fixed variance parameter. default is one.
-#' @param Iw0 vector of nominal weights for degree of interaction, used in generating candidate basis functions. Should have length equal to Jmax and have positive entries.
-#' @param Zw0 vector of nominal weights for variable selection, used in generating candidate basis functions. Should have length equal to ncol(X) and have positive entries.
-#' @param verbose Logical. Should gbass print completion status? Default TRUE
-#' @details Currently, the prior for w and v_i must belong to the class of Generalized inverse Gaussian (GIG) or Generalized Beta Prime (GBP) priors. The list should have the following named fields
-#' \enumerate{
-#'    \item type. either "GIG" or "GBP".
-#'    \item p, a, b. Hyperparameters for the prior. p,a,b > 0 for GBP. See ?rgig2 for details on GIG parameters.
-#'    \item prop_sigma. The proposal standard deviation for Metropolis-Hastings. Only needed if type="GBP" or if type="GIG" and beta is not fixed at zero.
-#'    \item lb. An optional lower bound which truncates the prior for w. This argument is ignored when specified for v_prior.
-#' }
-#' The build_prior function can be used to construct these priors.
-#'
-#' @return The returned value is a named list with components for each of the MCMC parameters. The acceptance rates for each move type is returned. If applicable, we also return acceptance rates for w and the v_i.
-#' @note Some comments about current deficiencies in the code.
-#' \enumerate{
-#'    \item basis function parameters are stored as lists.
-#'    \item burn-in and thinning is not implemented intelligently.
-#'    \item continuous uniform prior for knot locations.
-#'    \item assumes a ridge prior for basis coefficients.
-#' }
-#' @import Matrix
-#' @examples
-#' #not yet
-#'
-#'@export
+#' @rdname nwbass
+#' @export
 nwbass2 <- nwbass
 

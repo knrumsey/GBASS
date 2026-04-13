@@ -10,7 +10,7 @@
 #'
 #' @return A numeric vector of length \code{n}.
 #' @export
-rMHN_old <- function(n = 1, alpha, beta, gamma) {
+rMHN <- function(n = 1, alpha, beta, gamma) {
   .mhn_validate_args(n = n, alpha = alpha, beta = beta, gamma = gamma)
 
   if (n == 0L) {

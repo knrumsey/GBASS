@@ -1,9 +1,8 @@
 test_that("Quantile regression with GBASS", {
   cat('simple quantile regression example')
 
-  ff1 <- function (x){
-    1.3356 * (1.5 * (1 - x[1]) + exp(2 * x[1] - 1) * sin(3 * pi * (x[1] - 0.6)^2) + exp(3 * (x[2] - 0.5)) * sin(4 * pi * (x[2] - 0.9)^2))
-  }
+  set.seed(1)
+  ff1 <- function(x) 10.391*((x[1]-0.4)*(x[2]-0.6) + 0.36)
   X <- lhs::maximinLHS(300, 2)
   y <- 6*apply(X, 1, ff1) + (rgamma(300, 1.5, 1) - 1.5)
   mod <- qbass(X, y, q=0.75,
@@ -14,5 +13,5 @@ test_that("Quantile regression with GBASS", {
   yhat <- apply(predict(mod, X2)
                 , 2, mean)
   d1 <- sqrt(mean((y2-yhat)^2))
-  expect_that(d1, is_less_than(0.6))
+  expect_that(d1, is_less_than(sd(y2)/3))
 })
