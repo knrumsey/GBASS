@@ -18,10 +18,10 @@ Depends:
     R (>= 3.5.0)
 Imports: 
     Matrix,
-    GIGrvg
+    GIGrvg,
+    BASS
 Suggests: 
     knitr,
     rmarkdown,
     lhs,
     testthat (>= 2.1.0)
-VignetteBuilder: knitr

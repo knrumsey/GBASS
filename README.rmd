@@ -49,15 +49,14 @@ remotes::install_github("knrumsey/GBASS")
 The example below compares `nwbass()` to a standard `bass()` model on a simple stochastic emulator problem with skewed response behavior.
 
 ```{r example, eval=TRUE, echo=FALSE, fig.height=5, fig.width=7}
-library(GBASS)
-library(BASS)
-library(lhs)
+library(BASS, verbose=FALSE)
+library(GBASS, verbose=FALSE)
 
 # Define function
 dms_simple <- function(x) 10.391 * ((x[1] - 0.4) * (x[2] - 0.6) + 0.36)
 
 # Get data
-X <- maximinLHS(1000, 2)
+X <- matrix(runif(2*1000), nrow=1000, ncol=2)
 y <- 10 * apply(X, 1, dms_simple) + (rgamma(1000, 2, 0.05) - 40) / sqrt(2 / 0.05^2)
 
 # Fit NWBASS model
