@@ -2,23 +2,26 @@
 % Please edit documentation in R/wrappers.R
 \name{hbass}
 \alias{hbass}
-\alias{bass_shoe}
-\title{HBASS - Bayesian MARS with a Horseshoe (or Strawderman-Berger) likelihood}
+\title{HBASS - Bayesian MARS with Horseshoe or Strawderman-Berger likelihood}
 \usage{
 hbass(X, y, likelihood = "h", ...)
 }
 \arguments{
-\item{X}{an Nxp matrix of predictor variables.}
+\item{X}{An \eqn{N \times p} numeric matrix of predictor variables.}
 
-\item{y}{an Nx1 matrix (or vector) of response values.}
+\item{y}{A numeric response vector of length \eqn{N}.}
 
-\item{likelihood}{default "h". Also accepts "sb" for Strawderman-Berger}
+\item{likelihood}{Character string specifying the likelihood family.
+Use \code{"h"} for Horseshoe or \code{"sb"} for Strawderman-Berger.}
+
+\item{...}{Additional arguments passed to \code{gbass()}.}
 }
 \description{
-HBASS - Bayesian MARS with a Horseshoe (or Strawderman-Berger) likelihood
+Wrapper around \code{gbass()} using generalized beta prime latent-scale priors.
 }
 \details{
-The Horseshoe and Strawderman-Berger likelihoods can be unified under the class of
-Generalized Beta Prime distributions. This function provides a wrapper for these likelilhoods. For additional flexibility, use gbass().
-These distributions have most of their mass near zero but with heavy tails, making this an interesting choice for datasets with potential outliers.
+The Horseshoe and Strawderman-Berger likelihoods can be expressed using
+generalized beta prime latent-scale distributions. This function provides a
+convenient wrapper for these likelihoods. For additional flexibility, use
+\code{gbass()} directly.
 }

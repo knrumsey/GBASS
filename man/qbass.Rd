@@ -2,7 +2,7 @@
 % Please edit documentation in R/wrappers.R
 \name{qbass}
 \alias{qbass}
-\title{QBASS - Bayesian MARS with an asymmetric Laplace likelhood}
+\title{QBASS - Bayesian MARS with an asymmetric Laplace likelihood}
 \usage{
 qbass(
   X,
@@ -14,19 +14,24 @@ qbass(
 )
 }
 \arguments{
-\item{X}{an Nxp matrix of predictor variables.}
+\item{X}{An \eqn{N \times p} numeric matrix of predictor variables.}
 
-\item{y}{an Nx1 matrix (or vector) of response values.}
+\item{y}{A numeric response vector of length \eqn{N}.}
 
-\item{q}{quantile of interest. Default is 0.5 for median regression.}
+\item{q}{Quantile of interest. Default is \code{0.5} for median regression.}
 
-\item{prop_sigma_v}{proposal SD for the local variance factors}
+\item{prop_sigma_v}{Proposal standard deviation for local variance updates.
+This is retained for backward compatibility.}
 
-\item{w_prior}{prior for global variance factor. Default is Jeffreys prior}
+\item{w_prior}{Prior for the global variance factor.}
+
+\item{...}{Additional arguments passed to \code{gbass()}.}
 }
 \description{
-QBASS - Bayesian MARS with an asymmetric Laplace likelhood
+Wrapper around \code{gbass()} for quantile regression.
 }
 \details{
-Performs quantile regression for quantile q. For many quantiles, consider running in parallel. Can be used to view Sobol decomposition as a function of quantile.
+Performs quantile regression for quantile \code{q} using the asymmetric
+Laplace representation. For many quantiles, fitting separate models in
+parallel may be convenient.
 }

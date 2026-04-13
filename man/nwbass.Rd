@@ -3,7 +3,7 @@
 \name{nwbass}
 \alias{nwbass}
 \alias{nwbass2}
-\title{Generalized Bayesian MARS with a NW Likelihood}
+\title{Generalized Bayesian MARS with a Normal-Wald likelihood}
 \usage{
 nwbass(
   X,
@@ -13,7 +13,7 @@ nwbass(
   maxBasis = 1000,
   npart = NULL,
   nmcmc = 10000,
-  nburn = 9001,
+  nburn = 9000,
   thin = 1,
   moveProbs = rep(1/3, 3),
   a_tau = 1/2,
@@ -25,115 +25,105 @@ nwbass(
   lag_beta = 1001,
   m_gamma = 1,
   s_gamma = 0,
-  vsig = 0.25,
   scale = 1,
   Iw0 = rep(1, maxInt),
   Zw0 = rep(1, ncol(X)),
   verbose = TRUE
 )
 
-nwbass2(
-  X,
-  y,
-  w_prior = list(type = "GIG", p = -0.1, a = 0, b = 0.1),
-  maxInt = 3,
-  maxBasis = 1000,
-  npart = NULL,
-  nmcmc = 10000,
-  nburn = 9001,
-  thin = 1,
-  moveProbs = rep(1/3, 3),
-  a_tau = 1/2,
-  b_tau = NULL,
-  a_lambda = 1,
-  b_lambda = 1,
-  m_beta = 0,
-  s_beta = 0,
-  lag_beta = 1001,
-  m_gamma = 1,
-  s_gamma = 0,
-  vsig = 0.25,
-  scale = 1,
-  Iw0 = rep(1, maxInt),
-  Zw0 = rep(1, ncol(X)),
-  verbose = TRUE
-)
+nwbass2(...)
 }
 \arguments{
-\item{X}{an Nxp matrix of predictor variables.}
+\item{X}{An \eqn{N \times p} numeric matrix of predictor variables. A numeric
+vector is treated as a single-column matrix.}
 
-\item{y}{an Nx1 matrix (or vector) of response values.}
+\item{y}{A numeric response vector of length \eqn{N}.}
 
-\item{w_prior}{a named list specifying the prior for the global variance component. See details.}
+\item{w_prior}{A named list specifying the prior for the global variance
+component. See Details.}
 
-\item{maxInt}{integer for maximum degree of interaction in spline basis functions. Defaults to the number of predictors, which could result in overfitting.}
+\item{maxInt}{Integer giving the maximum degree of interaction in spline basis
+functions. Defaults to \code{3}.}
 
-\item{maxBasis}{maximum number of basis functions. This should probably only be altered if you run out of memory.}
+\item{maxBasis}{Maximum number of basis functions.}
 
-\item{npart}{of non-zero points in a basis function. If the response is functional, this refers only to the portion of the basis function coming from the non-functional predictors. Defaults to 20 or 0.1 times the number of observations, whichever is smaller.}
+\item{npart}{Minimum number of nonzero points required for a proposed basis
+function. Defaults to \code{min(20, 0.1 * N)}.}
 
-\item{nmcmc}{number of mcmc iterations}
+\item{nmcmc}{Total number of MCMC iterations.}
 
-\item{nburn}{number of burn-in samples}
+\item{nburn}{Number of initial MCMC iterations discarded as burn-in.}
 
-\item{thin}{thinning for mcmc}
+\item{thin}{Thinning interval for retained draws.}
 
-\item{moveProbs}{a vector defining the probabilities for (i) birth (ii) death and (iii) mutation. Default is rep(1/3,3).}
+\item{moveProbs}{A length-3 vector giving probabilities for birth, death, and
+mutation moves.}
 
-\item{a_tau}{prior for tau}
+\item{a_tau}{Prior hyperparameter for \code{tau}.}
 
-\item{b_tau}{prior for tyau}
+\item{b_tau}{Prior hyperparameter for \code{tau}. Defaults to \code{N / 2}.}
 
-\item{a_lambda}{prior for lambda}
+\item{a_lambda}{Prior hyperparameter for \code{lambda}.}
 
-\item{b_lambda}{prior for lambda}
+\item{b_lambda}{Prior hyperparameter for \code{lambda}.}
 
-\item{m_beta}{prior for beta}
+\item{m_beta}{Prior mean for \code{beta}.}
 
-\item{s_beta}{prior for beta}
+\item{s_beta}{Prior standard deviation for \code{beta}.}
 
-\item{lag_beta}{number of steps for which beta is fixed to m_beta (usually zero)}
+\item{lag_beta}{Number of initial iterations for which \code{beta} is fixed at
+\code{m_beta}. This is often used to stabilize early sampling.}
 
-\item{m_gamma}{prior for gamma}
+\item{m_gamma}{Prior mean for \code{gamma}.}
 
-\item{s_gamma}{prior for gamma}
+\item{s_gamma}{Prior standard deviation for \code{gamma}.}
 
-\item{scale}{fixed variance parameter. default is one.}
+\item{scale}{Fixed variance-scale parameter. Defaults to \code{1}.}
 
-\item{Iw0}{vector of nominal weights for degree of interaction, used in generating candidate basis functions. Should have length equal to Jmax and have positive entries.}
+\item{Iw0}{Vector of positive nominal weights for interaction order in proposed
+basis functions. Must have length \code{maxInt}.}
 
-\item{Zw0}{vector of nominal weights for variable selection, used in generating candidate basis functions. Should have length equal to ncol(X) and have positive entries.}
+\item{Zw0}{Vector of positive nominal weights for variable selection in proposed
+basis functions. Must have length \code{ncol(X)}.}
 
-\item{verbose}{Logical. Should gbass print completion status? Default TRUE}
+\item{verbose}{Logical; should progress be printed?}
 
-\item{v_prior}{a named list specifying the (shared) prior for the local variance components. See details.}
+\item{...}{(for backwards compatability)}
 }
 \value{
-The returned value is a named list with components for each of the MCMC parameters. The acceptance rates for each move type is returned. If applicable, we also return acceptance rates for w and the v_i.
+An object of class \code{c("nwbass", "gbass")} containing posterior draws and
+fitted model information.
 }
 \description{
-Fits a generalized BMARS model with Normal-Wald likelihood. General purpose regression with flexible error distribution (unimodal).
+Fits a generalized BMARS model under a Normal-Wald likelihood. This provides
+flexible nonlinear regression with a unimodal, potentially skewed error model.
 }
 \details{
-Currently, the prior for w and v_i must belong to the class of Generalized inverse Gaussian (GIG) or Generalized Beta Prime (GBP) priors. The list should have the following named fields
+The latent local-scale prior is fixed internally to the Normal-Wald form
+\eqn{v_i \sim \mathrm{GIG}(-1/2, \gamma^2, 1)}. Unlike \code{gbass()},
+\code{nwbass()} does not expose a user-specified \code{v_prior}.
+
+The \code{w_prior} list should contain:
 \enumerate{
-\item type. either "GIG" or "GBP".
-\item p, a, b. Hyperparameters for the prior. p,a,b > 0 for GBP. See ?rgig2 for details on GIG parameters.
-\item prop_sigma. The proposal standard deviation for Metropolis-Hastings. Only needed if type="GBP" or if type="GIG" and beta is not fixed at zero.
-\item lb. An optional lower bound which truncates the prior for w. This argument is ignored when specified for v_prior.
+\item \code{type}: either \code{"GIG"} or \code{"GBP"}.
+\item \code{p}, \code{a}, \code{b}: hyperparameters for the prior.
+\item \code{lower_bound}: optional lower bound for \code{w}. For backward
+compatibility, \code{lb} is also accepted.
+\item \code{prop_sigma}: proposal standard deviation on the log scale for
+Metropolis updates of \code{w}. This is only used when \code{w} is updated
+by Metropolis-Hastings, such as the \code{"GBP"} case.
+\item \code{adapt}, \code{adapt_delay}, \code{adapt_thin}: optional controls
+for adaptive Metropolis updates of \code{w} when applicable.
 }
-The build_prior function can be used to construct these priors.
-}
-\note{
-Some comments about current deficiencies in the code.
-\enumerate{
-\item basis function parameters are stored as lists.
-\item burn-in and thinning is not implemented intelligently.
-\item continuous uniform prior for knot locations.
-\item assumes a ridge prior for basis coefficients.
-}
+
+Retained draws are taken at iterations
+\code{nburn + 1, nburn + 1 + thin, ...}. Thus \code{nburn} is interpreted as
+the number of initial iterations discarded as burn-in.
 }
 \examples{
-#not yet
-
+# Simple example
+# n <- 200
+# X <- lhs::maximinLHS(n, 2)
+# y <- 6 * apply(X, 1, function(x) sin(pi * x[1]) + x[2]^2)
+# mod <- nwbass(X, y, nmcmc = 2000, nburn = 1000)
 }

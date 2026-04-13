@@ -7,16 +7,19 @@
 tbass(X, y, df = 5, ...)
 }
 \arguments{
-\item{X}{an Nxp matrix of predictor variables.}
+\item{X}{An \eqn{N \times p} numeric matrix of predictor variables.}
 
-\item{y}{an Nx1 matrix (or vector) of response values.}
+\item{y}{A numeric response vector of length \eqn{N}.}
 
-\item{df}{degrees of freedom, default is 5.}
+\item{df}{Degrees of freedom. Default is \code{5}.}
+
+\item{...}{Additional arguments passed to \code{gbass()}.}
 }
 \description{
-TBASS - Bayesian MARS with a Student's t likelihood
+Wrapper around \code{gbass()} for a Student's t error model.
 }
 \details{
-Inverse-gamma prior for local variance components. If df > 2, then
-the scale is set to (df-2)/df so that the variance of y is equal to w.
+Uses an inverse-gamma latent-scale representation through a GIG prior on the
+local variance components. If \code{df > 2}, the scale is set to
+\code{(df - 2) / df} so that the marginal variance matches \code{w}.
 }
