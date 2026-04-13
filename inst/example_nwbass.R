@@ -1,8 +1,11 @@
 library(GBASS)
 library(BASS)
-library(duqling)
 library(lhs)
 
+# Define function
+dms_simple <- function(x) 10.391 * ((x[1] - 0.4) * (x[2] - 0.6) + 0.36)
+
+# Get data
 X <- maximinLHS(1000, 2)
 y <- 10*apply(X, 1, dms_simple) + (rgamma(1000, 2, 0.05) - 40)/sqrt(2/0.05^2)
 

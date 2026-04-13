@@ -29,6 +29,8 @@ tbass <- function(X, y, df = 5, ...) {
 #'
 #' @param X An \eqn{N \times p} numeric matrix of predictor variables.
 #' @param y A numeric response vector of length \eqn{N}.
+#' @param w_prior A named list specifying the prior for the global variance
+#'   component. See Details.
 #' @param likelihood Character string specifying the likelihood family.
 #'   Use \code{"h"} for Horseshoe or \code{"sb"} for Strawderman-Berger.
 #' @param ... Additional arguments passed to \code{gbass()}.
@@ -40,13 +42,14 @@ tbass <- function(X, y, df = 5, ...) {
 #' \code{gbass()} directly.
 #'
 #' @export
-hbass <- function(X, y, likelihood = "h", ...) {
-  w_prior <- list(type = "GBP", p = 1, a = 1 / 2, b = 1 / 2, prop_sigma = 0.5)
+hbass <- function(X, y,
+                  w_prior = list(type = "GBP", p = 1, a = 1 / 2, b = 1 / 2),
+                  likelihood = "h", ...) {
 
-  if (likelihood == "h") {
-    v_prior <- list(type = "GBP", p = 1, a = 1 / 2, b = 1 / 2, prop_sigma = 0.5)
-  } else if (likelihood == "sb") {
-    v_prior <- list(type = "GBP", p = 1 / 2, a = 1, b = 1 / 2, prop_sigma = 0.5)
+  if (likelihood == "h" || likelihood == "horseshoe") {
+    v_prior <- list(type = "GBP", p = 1, a = 1 / 2, b = 1 / 2)
+  } else if (likelihood == "sb" || likelihood == "strawderman-berger") {
+    v_prior <- list(type = "GBP", p = 1 / 2, a = 1, b = 1 / 2)
   } else {
     stop("likelihood not recognized. See documentation.")
   }

@@ -177,12 +177,12 @@ move_type <- function(M, Mmax, Pmove){
   if(M >= Mmax) return(sample(c("D", "M"), 1, prob=Pmove[2:3]))
   return(sample(c("B", "D", "M"), 1, prob=Pmove))
 }
-rgbp<-function(v_curr,v_prior,w_curr,c,r,beta_curr){
-  v_cand <- exp(log(v_curr) + rnorm(1, 0, v_prior$prop_sigma))
-  if(v_cand >= v_prior$lb){
-    alpha_v <- (v_prior$p*v_prior$a - 1/2)*(log(v_cand) - log(v_curr)) -
+rgbp<-function(v_curr,a, b, p, prop_sigma,lb, w_curr,c,r,beta_curr){
+  v_cand <- exp(log(v_curr) + rnorm(1, 0, prop_sigma))
+  if(v_cand >= lb){
+    alpha_v <- (p*a - 1/2)*(log(v_cand) - log(v_curr)) -
       r^2/(2*w_curr*c)*(1/v_cand - 1/v_curr) -
-      (v_prior$a + v_prior$b)*(log(1+v_cand^v_prior$p) - log(1+v_curr^v_prior$p)) -
+      (a + b)*(log(1+v_cand^p) - log(1+v_curr^p)) -
       beta_curr^2/(2*c)*(v_cand - v_curr)
   }else{
     alpha_v <- -Inf

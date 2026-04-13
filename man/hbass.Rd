@@ -4,12 +4,21 @@
 \alias{hbass}
 \title{HBASS - Bayesian MARS with Horseshoe or Strawderman-Berger likelihood}
 \usage{
-hbass(X, y, likelihood = "h", ...)
+hbass(
+  X,
+  y,
+  w_prior = list(type = "GBP", p = 1, a = 1/2, b = 1/2),
+  likelihood = "h",
+  ...
+)
 }
 \arguments{
 \item{X}{An \eqn{N \times p} numeric matrix of predictor variables.}
 
 \item{y}{A numeric response vector of length \eqn{N}.}
+
+\item{w_prior}{A named list specifying the prior for the global variance
+component. See Details.}
 
 \item{likelihood}{Character string specifying the likelihood family.
 Use \code{"h"} for Horseshoe or \code{"sb"} for Strawderman-Berger.}

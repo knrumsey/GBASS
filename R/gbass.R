@@ -235,7 +235,8 @@ gbass <- function(
   cnt1 <- cnt2 <- rep(0, 3)
   cntw <- 0
   cntv <- 0
-  adapt_iter <- rep(FALSE, nmcmc)
+  adapt_iter_w <- rep(FALSE, nmcmc)
+  adapt_iter_v <- rep(FALSE, nmcmc)
 
   if (w_prior$type == "GBP") {
     if (is.null(w_prior$prop_sigma)) {
@@ -256,12 +257,31 @@ gbass <- function(
       w_prior$count <- 1L
       w_prior$sum1 <- log(w)
       w_prior$welford <- 0
-      adapt_iter <- seq_len(nmcmc) %in% seq.int(1L, nburn, by = w_prior$adapt_thin)
+      adapt_iter_w <- seq_len(nmcmc) %in% seq.int(1L, nburn, by = w_prior$adapt_thin)
     }
   }
 
   if (v_prior$type == "GBP") {
-    cntv <- 0
+    if (is.null(v_prior$prop_sigma)) {
+      v_prior$prop_sigma <- 0.05 * var(y)
+    }
+    if (is.null(v_prior$adapt)) {
+      v_prior$adapt <- TRUE
+    }
+
+    if (v_prior$adapt) {
+      if (is.null(v_prior$adapt_delay)) {
+        v_prior$adapt_delay <- floor(nburn / 10)
+      }
+      if (is.null(v_prior$adapt_thin)) {
+        v_prior$adapt_thin <- 1L
+      }
+
+      v_prior$count <- 1L
+      v_prior$sum1 <- mean(log(v))
+      v_prior$welford <- 0
+      adapt_iter_v <- seq_len(nmcmc) %in% seq.int(1L, nburn, by = v_prior$adapt_thin)
+    }
   }
 
   tX <- t(X)
@@ -498,7 +518,7 @@ gbass <- function(
       }
 
       if (w_prior$adapt) {
-        if (adapt_iter[k]) {
+        if (adapt_iter_w[k]) {
           theta <- log(w)
 
           n_adapt <- w_prior$count + 1L
@@ -528,12 +548,39 @@ gbass <- function(
         b = as.numeric(v_prior$b + r^2 / (w * scale))
       )
     } else {
-      v <- rgbp.vec(as.numeric(v), v_prior, w, scale, as.numeric(r), bet)
+      v_old <- v
+      v <- rgbp.vec(as.numeric(v),
+                    v_prior$a, v_prior$b, v_prior$p,
+                    v_prior$prop_sigma, v_prior$lower_bound,
+                    w, scale, as.numeric(r), bet)
+      cntv <- cntv + sum(v != v_old)
+
+      if (v_prior$adapt) {
+        if (adapt_iter_v[k]) {
+          theta <- mean(log(v))
+
+          n_adapt  <- v_prior$count + 1
+          S1_adapt <- v_prior$sum1 + theta
+
+          v_prior$count <- n_adapt
+          v_prior$sum1  <- S1_adapt
+
+          xbar_n <- S1_adapt / n_adapt
+          xbar_n_1 <- (S1_adapt - theta) / (n_adapt - 1)
+          v_prior$welford <- v_prior$welford + (theta - xbar_n_1) * (theta - xbar_n)
+
+          if (k > v_prior$adapt_delay) {
+            var_adapt <- max(v_prior$welford / (n_adapt - 1), 0)
+            ps_adapt <- sqrt(2.38^2 * var_adapt + 1e-8)
+            v_prior$prop_sigma <- min(max(ps_adapt, 1e-3), 5)
+          }
+        }
+      }
     }
 
     z <- y - bet * v * sqrt(w)
     Vinv <- Matrix::Diagonal(x = 1 / v)
-    U <- solve(symchol(crossprod(B, Vinv) %*% B + scale / tau * Diagonal(M + 1L)))
+    U <- solve(symchol(crossprod(B, Vinv) %*% B + scale / tau * Diagonal(M + 1)))
     U2 <- crossprod(z / v, B) %*% U
 
     if (v_prior$type == "GIG") {
@@ -557,7 +604,7 @@ gbass <- function(
         s2_mc[kk] <- s2
       }
 
-      kk <- kk + 1L
+      kk <- kk + 1
     }
 
     if (verbose && k %% 1000 == 0) {
@@ -579,8 +626,8 @@ gbass <- function(
     lookup = lookup,
     cnt1 = cnt1,
     cnt2 = cnt2,
-    cntw = cntw,
-    cntv = cntv,
+    acc_rate_w = if (w_prior$type == "GBP") cntw / nmcmc else NA,
+    acc_rate_v = if (v_prior$type == "GBP") cntv / (nmcmc * N) else NA,
     ss = ss,
     v_prior = v_prior,
     scale = scale,
@@ -703,7 +750,17 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
       return(replicate(n, rgig2(vp$p, vp$a, vp$b)))
     }
 
-    stop("predictive=TRUE is currently implemented only for GIG-based v_prior objects.")
+    if (vp$type == "GBP") {
+      if (!is.null(vp$lower_bound) && vp$lower_bound > 0) {
+        stop("predictive=TRUE for GBP priors currently requires lower_bound = 0.")
+      }
+
+      u <- stats::rbeta(n, shape1 = vp$a, shape2 = vp$b)
+      t <- u / (1 - u)
+      return(t^(1 / vp$p))
+    }
+
+    stop("predictive=TRUE is currently implemented only for GIG- or GBP-based v_prior objects.")
   }
 
   mean_v_prior <- function(object, draw_index) {
@@ -728,7 +785,7 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
   nout <- if (predictive) ndraw * samples else ndraw
   res <- matrix(NA_real_, nrow = nout, ncol = N)
 
-  jj <- 1L
+  jj <- 1
   for (i in mcmc.use) {
     B_curr <- build_basis_gbass(object, i, newdata)
     eta <- as.numeric(B_curr %*% object$a[[i]])
@@ -744,14 +801,14 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
       } else {
         res[jj, ] <- eta
       }
-      jj <- jj + 1L
+      jj <- jj + 1
     } else {
       for (s in seq_len(samples)) {
         v_new <- draw_v_new(object, i, N)
         z_new <- rnorm(N)
         eps_new <- sqrt(w_i) * (beta_i * v_new + sqrt(scale_i * v_new) * z_new)
         res[jj, ] <- eta + eps_new
-        jj <- jj + 1L
+        jj <- jj + 1
       }
     }
   }
