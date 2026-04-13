@@ -4,7 +4,7 @@
 \alias{print.gbass}
 \title{Print a gbass object}
 \usage{
-print.gbass(x, ...)
+\method{print}{gbass}(x, ...)
 }
 \arguments{
 \item{x}{An object of class \code{"gbass"}.}

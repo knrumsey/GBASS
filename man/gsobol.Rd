@@ -25,6 +25,8 @@ Users who want direct access to the converted \code{BASS} object can call
 \code{gbass2bass()} explicitly and then use \code{BASS::sobol()} themselves.
 }
 \examples{
+ff1 <- function(x) 10.391*((x[1]-0.4)*(x[2]-0.6) + 0.36)
+
 n <- 100
 p <- 4
 X <- matrix(runif(n * p), nrow = n)

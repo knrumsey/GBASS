@@ -661,6 +661,7 @@ gbass <- function(
 #' @param samples Integer giving the number of predictive samples to generate
 #'   per retained MCMC draw when \code{predictive = TRUE}. Ignored when
 #'   \code{predictive = FALSE}. Default is \code{1}.
+#' @param ... Additional graphical arguments (not used)
 #'
 #' @details
 #' If predictive = FALSE and bias_correct = FALSE, this returns draws of B(x)a.
@@ -684,7 +685,7 @@ gbass <- function(
 #' @export
 predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
                           predictive = TRUE, bias_correct = FALSE,
-                          samples = 1) {
+                          samples = 1, ...) {
 
   if (is.null(newdata)) {
     newdata <- object$X
@@ -818,13 +819,11 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
   return(res)
 }
 
-#' Plot method for class "gbass"
+#' Plot method for gbass objects
 #'
-#' This function plots an object of class "gbass"
-#'
-#' @param x an object of class "gbass" created by \code{gbass}, \code{nwbass}, or a wrapper.
-#' @details Returns a matrix of posterior predictions.
-#'
+#' @param x A fitted object of class \code{"gbass"}.
+#' @param ... Additional graphical arguments.
+#' @method plot gbass
 #' @export
 plot.gbass <- function(x, ...){
   if(!("gbass" %in% class(x)))
@@ -859,7 +858,7 @@ plot.gbass <- function(x, ...){
 #'
 #' @param x An object of class \code{"gbass"}.
 #' @param ... Unused.
-#'
+#' @method print gbass
 #' @export
 print.gbass <- function(x, ...) {
   cat("Generalized Bayesian MARS model\n")

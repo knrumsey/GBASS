@@ -17,6 +17,8 @@
 #' @seealso \code{\link{gbass2bass}}, \code{\link[BASS]{sobol}}
 #'
 #' @examples
+#' ff1 <- function(x) 10.391*((x[1]-0.4)*(x[2]-0.6) + 0.36)
+#'
 #' n <- 100
 #' p <- 4
 #' X <- matrix(runif(n * p), nrow = n)

@@ -2,16 +2,15 @@
 % Please edit documentation in R/gbass.R
 \name{plot.gbass}
 \alias{plot.gbass}
-\title{Plot method for class "gbass"}
+\title{Plot method for gbass objects}
 \usage{
 \method{plot}{gbass}(x, ...)
 }
 \arguments{
-\item{x}{an object of class "gbass" created by \code{gbass}, \code{nwbass}, or a wrapper.}
+\item{x}{A fitted object of class \code{"gbass"}.}
+
+\item{...}{Additional graphical arguments.}
 }
 \description{
-This function plots an object of class "gbass"
-}
-\details{
-Returns a matrix of posterior predictions.
+Plot method for gbass objects
 }

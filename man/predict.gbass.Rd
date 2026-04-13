@@ -10,7 +10,8 @@
   mcmc.use = NULL,
   predictive = TRUE,
   bias_correct = FALSE,
-  samples = 1
+  samples = 1,
+  ...
 )
 }
 \arguments{
@@ -30,6 +31,8 @@ If TRUE, return the posterior mean response rather than just the linear predicto
 \item{samples}{Integer giving the number of predictive samples to generate
 per retained MCMC draw when \code{predictive = TRUE}. Ignored when
 \code{predictive = FALSE}. Default is \code{1}.}
+
+\item{...}{Additional graphical arguments (not used)}
 }
 \value{
 a matrix with rows corresponding to posterior draws and columns
