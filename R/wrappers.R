@@ -67,8 +67,6 @@ bass_shoe <- hbass
 #' @param X An \eqn{N \times p} numeric matrix of predictor variables.
 #' @param y A numeric response vector of length \eqn{N}.
 #' @param q Quantile of interest. Default is \code{0.5} for median regression.
-#' @param prop_sigma_v Proposal standard deviation for local variance updates.
-#'   This is retained for backward compatibility.
 #' @param w_prior Prior for the global variance factor.
 #' @param ... Additional arguments passed to \code{gbass()}.
 #'
@@ -78,22 +76,37 @@ bass_shoe <- hbass
 #' parallel may be convenient.
 #'
 #' @export
-qbass <- function(X, y, q = 0.5, prop_sigma_v = 0.25,
-                  w_prior = list(type = "GIG", p = 0, a = 0, b = 0, prop_sigma = 0.2), ...) {
-  v_prior <- list(type = "GIG", p = 1, a = 2, b = 0, prop_sigma = prop_sigma_v)
+qbass <- function(X, y, q = 0.5,
+                  w_prior = list(type = "GIG", p = -0.1, a = 0, b = 0.1), ...) {
+
+  dots <- list(...)
+
+  if ("prop_sigma_v" %in% names(dots)) {
+    warning("prop_sigma_v is deprecated and ignored.")
+    dots$prop_sigma_v <- NULL
+  }
+
+  v_prior <- list(type = "GIG", p = 1, a = 2, b = 0)
   scale <- 2 / (q * (1 - q))
   m_beta <- 1 / q - 1 / (1 - q)
   s_beta <- 0
 
-  md <- gbass(
-    X, y,
-    v_prior = v_prior,
-    w_prior = w_prior,
-    scale = scale,
-    m_beta = m_beta,
-    s_beta = s_beta,
-    ...
+  md <- do.call(
+    gbass,
+    c(
+      list(
+        X = X,
+        y = y,
+        v_prior = v_prior,
+        w_prior = w_prior,
+        scale = scale,
+        m_beta = m_beta,
+        s_beta = s_beta
+      ),
+      dots
+    )
   )
+
   md$q <- q
   class(md) <- c("qbass", "gbass")
   md

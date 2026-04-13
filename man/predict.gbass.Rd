@@ -9,7 +9,8 @@
   newdata = NULL,
   mcmc.use = NULL,
   predictive = TRUE,
-  bias_correct = FALSE
+  bias_correct = FALSE,
+  samples = 1
 )
 }
 \arguments{
@@ -25,6 +26,10 @@ If FALSE, return draws of the linear predictor.}
 
 \item{bias_correct}{logical. Ignored unless predictive = FALSE.
 If TRUE, return the posterior mean response rather than just the linear predictor.}
+
+\item{samples}{Integer giving the number of predictive samples to generate
+per retained MCMC draw when \code{predictive = TRUE}. Ignored when
+\code{predictive = FALSE}. Default is \code{1}.}
 }
 \value{
 a matrix with rows corresponding to posterior draws and columns

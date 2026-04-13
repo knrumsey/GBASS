@@ -609,6 +609,9 @@ gbass <- function(
 #'   If FALSE, return draws of the linear predictor.
 #' @param bias_correct logical. Ignored unless predictive = FALSE.
 #'   If TRUE, return the posterior mean response rather than just the linear predictor.
+#' @param samples Integer giving the number of predictive samples to generate
+#'   per retained MCMC draw when \code{predictive = TRUE}. Ignored when
+#'   \code{predictive = FALSE}. Default is \code{1}.
 #'
 #' @details
 #' If predictive = FALSE and bias_correct = FALSE, this returns draws of B(x)a.
@@ -631,7 +634,8 @@ gbass <- function(
 #'
 #' @export
 predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
-                          predictive = TRUE, bias_correct = FALSE) {
+                          predictive = TRUE, bias_correct = FALSE,
+                          samples = 1) {
 
   if (is.null(newdata)) {
     newdata <- object$X
@@ -639,6 +643,12 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
   if (is.null(dim(newdata))) {
     newdata <- matrix(newdata, ncol = ncol(object$X))
   }
+
+  if (!is.numeric(samples) || length(samples) != 1L ||
+      is.na(samples) || samples < 1 || samples != as.integer(samples)) {
+    stop("samples must be a positive integer.")
+  }
+  samples <- as.integer(samples)
 
   N <- nrow(newdata)
 
@@ -660,7 +670,6 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
     warning("bias_correct=TRUE is usually not what you want for qbass/quantile regression.")
   }
 
-  # small helper to build basis matrix at newdata for one posterior draw
   build_basis_gbass <- function(object, draw_index, newdata) {
     tX <- t(newdata)
     basis_curr <- object$lookup[unlist(object$basis[[draw_index]])]
@@ -675,11 +684,7 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
     B_curr
   }
 
-  # helper: draw from the prior for a new local variance factor v_new
   draw_v_new <- function(object, draw_index, n) {
-
-    # nwbass: assume intended NW model from paper:
-    # v ~ GIG(-1/2, gamma^2, 1)
     if (inherits(object, "nwbass")) {
       if (is.null(object$gamma)) {
         stop("nwbass object does not contain gamma draws.")
@@ -688,7 +693,6 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
       return(replicate(n, rgig2(-1/2, gam^2, 1)))
     }
 
-    # generic gbass / tbass / qbass path
     vp <- object$v_prior
 
     if (is.null(vp$type)) {
@@ -702,15 +706,12 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
     stop("predictive=TRUE is currently implemented only for GIG-based v_prior objects.")
   }
 
-  # helper: mean of v under the prior, for bias correction
   mean_v_prior <- function(object, draw_index) {
-
     if (inherits(object, "nwbass")) {
       if (is.null(object$gamma)) {
         stop("nwbass object does not contain gamma draws.")
       }
       gam <- object$gamma[draw_index]
-      # For GIG(-1/2, gamma^2, 1), E(v) = 1/gamma
       return(1 / gam)
     }
 
@@ -724,15 +725,14 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
   }
 
   ndraw <- length(mcmc.use)
-  res <- matrix(NA_real_, nrow = ndraw, ncol = N)
+  nout <- if (predictive) ndraw * samples else ndraw
+  res <- matrix(NA_real_, nrow = nout, ncol = N)
 
   jj <- 1L
   for (i in mcmc.use) {
-
     B_curr <- build_basis_gbass(object, i, newdata)
     eta <- as.numeric(B_curr %*% object$a[[i]])
 
-    # draw-specific parameters
     w_i <- object$w[i]
     beta_i <- if (!is.null(object$beta)) object$beta[i] else 0
     scale_i <- if (!is.null(object$scale)) object$scale else 1
@@ -744,19 +744,20 @@ predict.gbass <- function(object, newdata = NULL, mcmc.use = NULL,
       } else {
         res[jj, ] <- eta
       }
+      jj <- jj + 1L
     } else {
-      v_new <- draw_v_new(object, i, N)
-      z_new <- rnorm(N)
-      eps_new <- sqrt(w_i) * (beta_i * v_new + sqrt(scale_i * v_new) * z_new)
-      res[jj, ] <- eta + eps_new
+      for (s in seq_len(samples)) {
+        v_new <- draw_v_new(object, i, N)
+        z_new <- rnorm(N)
+        eps_new <- sqrt(w_i) * (beta_i * v_new + sqrt(scale_i * v_new) * z_new)
+        res[jj, ] <- eta + eps_new
+        jj <- jj + 1L
+      }
     }
-
-    jj <- jj + 1L
   }
 
   return(res)
 }
-
 
 #' Plot function for class "gbass"
 #'
@@ -794,4 +795,27 @@ plot.gbass <- function(x, ...){
         add=TRUE,
         col='red')
   par(mfrow=c(1,1))
+}
+
+
+#' Print a gbass object
+#'
+#' @param x An object of class \code{"gbass"}.
+#' @param ... Unused.
+#'
+#' @export
+print.gbass <- function(x, ...) {
+  cat("Generalized Bayesian MARS model\n")
+
+  if (!is.null(x$X)) {
+    cat("  Observations:", nrow(x$X), "\n")
+    cat("  Predictors:", ncol(x$X), "\n")
+  }
+
+  if (!is.null(x$M)) {
+    cat("  Saved draws:", length(x$M), "\n")
+    cat("  Mean basis functions:", round(mean(x$M, na.rm = TRUE), 2), "\n")
+  }
+
+  invisible(x)
 }

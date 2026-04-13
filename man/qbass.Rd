@@ -8,8 +8,7 @@ qbass(
   X,
   y,
   q = 0.5,
-  prop_sigma_v = 0.25,
-  w_prior = list(type = "GIG", p = 0, a = 0, b = 0, prop_sigma = 0.2),
+  w_prior = list(type = "GIG", p = -0.1, a = 0, b = 0.1),
   ...
 )
 }
@@ -19,9 +18,6 @@ qbass(
 \item{y}{A numeric response vector of length \eqn{N}.}
 
 \item{q}{Quantile of interest. Default is \code{0.5} for median regression.}
-
-\item{prop_sigma_v}{Proposal standard deviation for local variance updates.
-This is retained for backward compatibility.}
 
 \item{w_prior}{Prior for the global variance factor.}
 
