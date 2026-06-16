@@ -190,7 +190,8 @@ gbass2bass <- function(gm) {
   out$knotInd.des <- knotInd.des
   out$knots.des <- knots.des
   out$cx <- rep("numeric", out$p)
-  out$range.des <- rbind(apply(gm$X, 2, min), apply(gm$X, 2, max))
+  #out$range.des <- rbind(apply(gm$X, 2, min), apply(gm$X, 2, max))
+  out$range.des <- rbind(rep(0, out$p), rep(1, out$p))
 
   out$nburn <- 0
   out$thin <- 1
