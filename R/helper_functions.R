@@ -108,36 +108,87 @@ gbass2bass <- function(gm) {
   out$model.lookup <- model.lookup
   out$n.models <- max(model.lookup)
 
+  out$type <- "_des"
   out$des <- TRUE
   out$func <- FALSE
   out$cat <- FALSE
 
+  # max.int <- max(vapply(gm$lookup, function(zz) length(zz$s), integer(1)))
+  # n.int.des <- matrix(0, nrow = out$n.models, ncol = maxb)
+  # signs.des <- vars.des <- knots.des <- array(NA_real_, dim = c(out$n.models, maxb, max.int))
+  #
+  # for (i in seq_len(out$n.models)) {
+  #   ind <- which(model.lookup == i)
+  #   draw_idx <- ind[1]
+  #
+  #   if (gm$M[draw_idx] > 0) {
+  #     for (j in seq_len(gm$M[draw_idx])) {
+  #       basis_id <- gm$basis[[draw_idx]][j]
+  #       basis_obj <- gm$lookup[[basis_id]]
+  #
+  #       n.int.des[i, j] <- basis_obj$J
+  #       signs.des[i, j, seq_len(basis_obj$J)] <- basis_obj$s
+  #       vars.des[i, j, seq_len(basis_obj$J)]  <- basis_obj$u
+  #       knots.des[i, j, seq_len(basis_obj$J)] <- basis_obj$t
+  #     }
+  #   }
+  # }
+  #
+  # out$xx.des <- gm$X
+  # out$n.int.des <- n.int.des
+  # out$signs.des <- signs.des
+  # out$knots.des <- knots.des
+  # out$vars.des <- vars.des
   max.int <- max(vapply(gm$lookup, function(zz) length(zz$s), integer(1)))
+
   n.int.des <- matrix(0, nrow = out$n.models, ncol = maxb)
-  signs.des <- vars.des <- knots.des <- array(NA_real_, dim = c(out$n.models, maxb, max.int))
+  signs.des <- vars.des <- knotInd.des <- array(NA_integer_, dim = c(out$n.models, maxb, max.int))
+  knots.des <- array(NA_real_, dim = c(out$n.models, maxb, max.int))
+
+  xx.des <- gm$X
+  template_row <- colMeans(gm$X)
+
+  add_knot_row <- function(var, knot) {
+    new_row <- template_row
+    new_row[var] <- knot
+    xx.des <<- rbind(xx.des, new_row)
+    nrow(xx.des)
+  }
 
   for (i in seq_len(out$n.models)) {
     ind <- which(model.lookup == i)
     draw_idx <- ind[1]
 
     if (gm$M[draw_idx] > 0) {
+      basis_ids <- unlist(gm$basis[[draw_idx]])
+
       for (j in seq_len(gm$M[draw_idx])) {
-        basis_id <- gm$basis[[draw_idx]][j]
+        basis_id <- basis_ids[j]
         basis_obj <- gm$lookup[[basis_id]]
 
-        n.int.des[i, j] <- basis_obj$J
-        signs.des[i, j, seq_len(basis_obj$J)] <- basis_obj$s
-        vars.des[i, j, seq_len(basis_obj$J)]  <- basis_obj$u
-        knots.des[i, j, seq_len(basis_obj$J)] <- basis_obj$t
+        J <- basis_obj$J
+        n.int.des[i, j] <- J
+
+        signs.des[i, j, seq_len(J)] <- basis_obj$s
+        vars.des[i, j, seq_len(J)] <- basis_obj$u
+        knots.des[i, j, seq_len(J)] <- basis_obj$t
+
+        for (ell in seq_len(J)) {
+          knotInd.des[i, j, ell] <- add_knot_row(
+            var = basis_obj$u[ell],
+            knot = basis_obj$t[ell]
+          )
+        }
       }
     }
   }
 
-  out$xx.des <- gm$X
+  out$xx.des <- xx.des
   out$n.int.des <- n.int.des
   out$signs.des <- signs.des
-  out$knots.des <- knots.des
   out$vars.des <- vars.des
+  out$knotInd.des <- knotInd.des
+  out$knots.des <- knots.des
   out$cx <- rep("numeric", out$p)
   out$range.des <- rbind(apply(gm$X, 2, min), apply(gm$X, 2, max))
 
